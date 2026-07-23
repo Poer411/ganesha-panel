@@ -3,7 +3,7 @@
     "ExtStatusTrading": "ON",
     "WebTimeoutMinutes": 5,
     "ADXMax": 50,
-    "EMA": 50,
+    "EMA": 52,
     "GridStep": 30,
     "MaxLayer": 15,
     "TP_G1": 2,
