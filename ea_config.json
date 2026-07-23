@@ -1,7 +1,7 @@
 {
     "ModeControl": "WEB",
     "ExtStatusTrading": "ON",
-    "WebTimeoutMinutes": 10,
+    "WebTimeoutMinutes": 9,
     "ADXMax": 50,
     "EMA": 50,
     "GridStep": 60,
