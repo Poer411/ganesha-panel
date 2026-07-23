@@ -1,0 +1,15 @@
+{
+    "ModeControl": "LOCAL",
+    "ExtStatusTrading": "ON",
+    "WebTimeoutMinutes": 30,
+    "ADXMax": 50,
+    "EMA": 50,
+    "GridStep": 50,
+    "MaxLayer": 15,
+    "TP_G1": 2,
+    "TP_G2": 8,
+    "TP_G3": 20,
+    "TP_G4": 55,
+    "DailyTarget": 2000,
+    "MaxLoss": 5000
+}
