@@ -4,7 +4,7 @@
     "WebTimeoutMinutes": 5,
     "ADXMax": 50,
     "EMA": 50,
-    "GridStep": 30,
+    "GridStep": 60,
     "MaxLayer": 15,
     "TP_G1": 2,
     "TP_G2": 8,
