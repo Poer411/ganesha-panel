@@ -1,18 +1,19 @@
 <?php
-// 1. AKTIFKAN PELACAK ERROR (Agar jika ada masalah, langsung tertulis jelas di layar)
+// 1. AKTIFKAN PELACAK ERROR
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 $config_file = 'ea_config.json';
 $current = [];
 $debug_note = "";
+$message = null;
 
-// 2. BACA FILE JSON SECARA AMAN (Anti-Crash tanpa dependensi ekstensi luar)
+// 2. BACA FILE JSON SECARA AMAN (Bersihkan Karakter BOM dari EA)
 if (file_exists($config_file)) {
     $file_content = file_get_contents($config_file);
     
     if ($file_content !== false) {
-        // Bersihkan karakter BOM jika ada di awal file teks
+        // Bersihkan biner BOM jika file dibuat oleh MetaTrader/MQL
         if (substr($file_content, 0, 3) === "\xEF\xBB\xBF") {
             $file_content = substr($file_content, 3);
         }
@@ -20,29 +21,28 @@ if (file_exists($config_file)) {
             $file_content = substr($file_content, 2);
         }
 
-        // Dekode file JSON menjadi Array PHP
         $decoded = json_decode(trim($file_content), true);
         
         if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
             $current = $decoded;
         } else {
-            $debug_note = "⚠️ JSON Rusak / Gagal di-decode: " . json_last_error_msg();
+            $debug_note = "⚠️ Gagal mengurai data JSON: " . json_last_error_msg();
         }
     } else {
-        $debug_note = "⚠️ File ea_config.json ada, tapi tidak diberi izin baca oleh sistem server.";
+        $debug_note = "⚠️ Sistem tidak memiliki izin untuk membaca berkas ea_config.json.";
     }
 } else {
-    $debug_note = "⚠️ File ea_config.json TIDAK DITEMUKAN di folder yang sama dengan file PHP ini.";
+    $debug_note = "⚠️ Berkas ea_config.json tidak ditemukan di direktori ini.";
 }
 
-// Map variabel utama ke dalam form berdasarkan isi berkas JSON Anda
+// Mapping variabel utama berdasarkan struktur JSON eksak Anda
 $saved_timeout_minutes = isset($current['WebTimeoutMinutes']) ? (int)$current['WebTimeoutMinutes'] : 60;
 $mode_control          = isset($current['ModeControl']) ? $current['ModeControl'] : 'LOCAL';
 $ext_status            = isset($current['ExtStatusTrading']) ? $current['ExtStatusTrading'] : 'ON';
 $current_time          = time();
 $time_left             = 0;
 
-// 3. LOGIKA TIMEOUT OTOMATIS (WEB ke LOCAL jika waktu habis)
+// 3. LOGIKA TIMEOUT OTOMATIS (WEB ke LOCAL jika batas waktu habis)
 if ($mode_control === 'WEB') {
     if (!isset($current['WebModeStartTime'])) {
         $current['WebModeStartTime'] = $current_time;
@@ -67,21 +67,21 @@ if ($mode_control === 'WEB') {
     }
 }
 
-// 4. PROSES PEMBARUAN DATA (SAAT TOMBOL DIKLIK / POST)
+// 4. PROSES DATA SAAT FORM DIKIRIM (POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Gunakan isi data saat ini sebagai template agar parameter lain di dalam JSON tidak terhapus
+    // Gunakan data awal sebagai cetakan agar parameter internal EA lainnya tidak ikut terhapus
     $data = $current;
 
     $mode = isset($_POST['mode']) ? $_POST['mode'] : $mode_control;
     $status = isset($_POST['status']) ? $_POST['status'] : (isset($_POST['current_status_hidden']) ? $_POST['current_status_hidden'] : $ext_status);
     $new_timeout = isset($_POST['web_timeout_input']) ? (int)$_POST['web_timeout_input'] : $saved_timeout_minutes;
 
-    // Masukkan data baru ke dalam template array
+    // Perbarui data utama
     $data["ModeControl"] = $mode;
     $data["ExtStatusTrading"] = $status;
     $data["WebTimeoutMinutes"] = $new_timeout;
 
-    // Masukkan parameter angka dari form input
+    // Masukkan parameter teknis dari form
     if (isset($_POST['adx_max'])) $data["ADXMax"] = (int)$_POST['adx_max'];
     if (isset($_POST['ema'])) $data["EMA"] = (int)$_POST['ema'];
     if (isset($_POST['grid_step'])) $data["GridStep"] = (int)$_POST['grid_step'];
@@ -95,32 +95,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['daily_target'])) $data["DailyTarget"] = (float)$_POST['daily_target'];
     if (isset($_POST['max_loss'])) $data["MaxLoss"] = (float)$_POST['max_loss'];
 
-    // Parameter tambahan: Fitur Auto-Close hari Jumat
+    // Opsi Fitur Auto-Close Jumat Malam (23:00)
     if (isset($_POST['auto_close_friday'])) {
         $data["AutoCloseFriday"] = ($_POST['auto_close_friday'] === '1');
     }
 
-    // Kelola penanda waktu hitung mundur
+    // Kelola penanda waktu hitung mundur mode WEB
     if ($mode === 'WEB' && $mode_control !== 'WEB') {
         $data["WebModeStartTime"] = $current_time;
     } elseif ($mode === 'LOCAL') {
         unset($data["WebModeStartTime"]);
     }
 
-    // Simpan kembali secara aman ke file berkas ea_config.json
+    // Simpan kembali berkas JSON dengan proteksi LOCK_EX (anti korup file)
     $json_save = json_encode($data, JSON_PRETTY_PRINT);
     if ($json_save !== false) {
         file_put_contents($config_file, $json_save, LOCK_EX);
         $message = "✅ Perubahan berhasil dikirim ke EA";
         
-        // Perbarui variabel di memori agar langsung tampil di form HTML setelah save
+        // Segarkan variabel di memori agar form langsung menampilkan data terbaru
         $current = $data;
         $mode_control = $mode;
         $ext_status = $status;
         $saved_timeout_minutes = $new_timeout;
         $time_left = isset($data["WebModeStartTime"]) ? ($saved_timeout_minutes * 60) - (time() - $data["WebModeStartTime"]) : 0;
     } else {
-        $debug_note = "⚠️ Gagal mengubah data menjadi teks JSON.";
+        $debug_note = "⚠️ Gagal memformat data ke struktur teks JSON.";
     }
 }
 
@@ -132,15 +132,18 @@ $is_local = ($mode_control === 'LOCAL');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ganesha Panel - EA Control</title>
+    <title>Ganesha Panel - Ultra Clean Tech</title>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; padding: 20px; }
         .card { max-width: 500px; margin: auto; background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
         .header-container { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 15px; }
         .header-title { font-size: 1.6rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; }
         .header-subtitle { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; font-weight: normal; letter-spacing: 0.5px; }
-        .msg { background: #065f46; color: #34d399; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 15px; }
-        .err-msg { background: #7f1d1d; color: #fca5a5; padding: 10px; border-radius: 6px; text-align: left; margin-bottom: 15px; font-size: 0.85rem; line-height: 1.4; }
+        
+        /* Style untuk notifikasi */
+        .msg { background: #065f46; color: #34d399; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 15px; font-weight: bold; }
+        .err-msg { background: #7f1d1d; color: #fca5a5; padding: 12px; border-radius: 6px; text-align: left; margin-bottom: 15px; font-size: 0.85rem; line-height: 1.4; border: 1px solid #f87171; }
+        
         label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-top: 10px; text-transform: uppercase; }
         select, input { width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; color: white; border-radius: 6px; margin-top: 4px; box-sizing: border-box; transition: 0.2s; font-size: 1.1rem; }
         .btn-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
@@ -159,9 +162,18 @@ $is_local = ($mode_control === 'LOCAL');
             <div class="header-subtitle">Ultra-Clean Tech Core</div>
         </div>
 
-        <!-- TAMPILKAN DEBUG JIKA FILE JSON BERMASALAH -->
-        <?php if(!empty($debug_note)) echo "<div class='err-msg'>$debug_note</div>"; ?>
-        <?php if(isset($message)) echo "<div class='msg'>$message</div>"; ?>
+        <!-- FIX PERBAIKAN: Menampilkan alert secara bersih & aman -->
+        <?php if (!empty($debug_note)): ?>
+            <div class="err-msg">
+                <?php echo $debug_note; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($message !== null): ?>
+            <div class="msg">
+                <?php echo $message; ?>
+            </div>
+        <?php endif; ?>
         
         <form method="POST">
             <div style="display:flex; justify-content:space-between; align-items:flex-end;">
@@ -178,17 +190,17 @@ $is_local = ($mode_control === 'LOCAL');
             </div>
             
             <select name="mode" id="mode_select" onchange="toggleInputLock(this.value)">
-                <option value="WEB" <?= $mode_control=='WEB'?'selected':'' ?>>WEB CONTROL</option>
-                <option value="LOCAL" <?= $mode_control=='LOCAL'?'selected':'' ?>>LOCAL (Manual)</option>
+                <option value="WEB" <?= $mode_control==='WEB'?'selected':'' ?>>WEB CONTROL</option>
+                <option value="LOCAL" <?= $mode_control==='LOCAL'?'selected':'' ?>>LOCAL (Manual)</option>
             </select>
             
             <label>Status Trading</label>
             <input type="hidden" name="current_status_hidden" value="<?= $ext_status ?>">
             
             <div class="btn-group">
-                <button type="submit" name="status" value="ON" class="btn-status <?= $ext_status=='ON'?'active-btn':'' ?>" style="background:#16a34a;">✅<br>ON</button>
-                <button type="submit" name="status" value="OFF" class="btn-status <?= $ext_status=='OFF'?'active-btn':'' ?>" style="background:#ca8a04;">⏸️<br>OFF</button>
-                <button type="submit" name="status" value="EMERGENCY" class="btn-status <?= $ext_status=='EMERGENCY'?'active-btn':'' ?>" style="background:#dc2626;">🚨<br>EMER</button>
+                <button type="submit" name="status" value="ON" class="btn-status <?= $ext_status==='ON'?'active-btn':'' ?>" style="background:#16a34a;">✅<br>ON</button>
+                <button type="submit" name="status" value="OFF" class="btn-status <?= $ext_status==='OFF'?'active-btn':'' ?>" style="background:#ca8a04;">⏸️<br>OFF</button>
+                <button type="submit" name="status" value="EMERGENCY" class="btn-status <?= $ext_status==='EMERGENCY'?'active-btn':'' ?>" style="background:#dc2626;">🚨<br>EMER</button>
             </div>
 
             <div class="grid-2">
@@ -212,12 +224,14 @@ $is_local = ($mode_control === 'LOCAL');
                 <div><label>Max Loss</label><input type="number" step="0.01" name="max_loss" class="param-input" value="<?= $current['MaxLoss'] ?? 1000 ?>"></div>
             </div>
             
-            <div>
-                <label>Auto-Close Friday (23:00)</label>
-                <select name="auto_close_friday" class="param-input">
-                    <option value="1" <?= (isset($current['AutoCloseFriday']) && $current['AutoCloseFriday'] === true) ? 'selected' : '' ?>>AKTIF</option>
-                    <option value="0" <?= (!isset($current['AutoCloseFriday']) || $current['AutoCloseFriday'] === false) ? 'selected' : '' ?>>NONAKTIF</option>
-                </select>
+            <div class="grid-2">
+                <div>
+                    <label>Auto-Close Friday (23:00)</label>
+                    <select name="auto_close_friday" class="param-input">
+                        <option value="1" <?= (isset($current['AutoCloseFriday']) && $current['AutoCloseFriday'] === true) ? 'selected' : '' ?>>AKTIF</option>
+                        <option value="0" <?= (!isset($current['AutoCloseFriday']) || $current['AutoCloseFriday'] === false) ? 'selected' : '' ?>>NONAKTIF</option>
+                    </select>
+                </div>
             </div>
 
             <button type="submit" class="update-btn">SIMPAN PERUBAHAN PARAMETER</button>
