@@ -11,32 +11,67 @@ if (!file_exists($config_file) || filesize($config_file) < 5) {
 
 $current = [];
 if (file_exists($config_file)) {
-    $current = json_decode(file_get_contents($config_file), true);
+    $file_content = file_get_contents($config_file);
+    
+    // PERBAIKAN KRITIS: Deteksi & Konversi otomatis jika file ditulis dalam UTF-16LE oleh MetaTrader
+    if (substr($file_content, 0, 2) === "\xFF\xFE" || substr($file_content, 0, 2) === "\xFE\xFF") {
+        $file_content = mb_convert_encoding($file_content, 'UTF-8', 'UTF-16');
+    } elseif (mb_detect_encoding($file_content, 'UTF-8', true) === false) {
+        $converted = @mb_convert_encoding($file_content, 'UTF-8', 'UTF-16LE');
+        if (json_decode($converted) !== null) {
+            $file_content = $converted;
+        }
+    }
+    
+    // Bersihkan UTF-8 BOM jika ada
+    if (substr($file_content, 0, 3) === pack("CCC", 0xef, 0xbb, 0xbf)) {
+        $file_content = substr($file_content, 3);
+    }
+    
+    $current = json_decode(trim($file_content), true);
+    if (!is_array($current)) {
+        $current = [];
+    }
 }
 
-$saved_timeout_minutes = isset($current['WebTimeoutMinutes']) ? (int)$current['WebTimeoutMinutes'] : 15;
+// Helper untuk membaca key secara fleksibel (Huruf Besar / Huruf Kecil dari JSON)
+function get_val($arr, $key, $default) {
+    if (isset($arr[$key])) return $arr[$key];
+    $lower_key = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $key)); // Contoh: ADXMax -> adx_max
+    if (isset($arr[$lower_key])) return $arr[$lower_key];
+    if (isset($arr[strtolower($key)])) return $arr[strtolower($key)];
+    return $default;
+}
+
+$saved_timeout_minutes = (int)get_val($current, 'WebTimeoutMinutes', 15);
 $current_time = time();
+$mode_control = get_val($current, 'ModeControl', 'WEB');
+$ext_status = get_val($current, 'ExtStatusTrading', 'ON');
 
 // 2. Logika Hitung Mundur (Timeout) Otomatis dari WEB ke LOCAL
-if (isset($current['ModeControl']) && $current['ModeControl'] == 'WEB') {
-    if (!isset($current['WebModeStartTime'])) {
+if ($mode_control == 'WEB') {
+    if (!isset($current['WebModeStartTime']) && !isset($current['web_mode_start_time'])) {
         $current['WebModeStartTime'] = $current_time;
         file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT), LOCK_EX);
     }
     
-    $elapsed_time = $current_time - $current['WebModeStartTime'];
+    $start_time = isset($current['WebModeStartTime']) ? $current['WebModeStartTime'] : ($current['web_mode_start_time'] ?? $current_time);
+    $elapsed_time = $current_time - $start_time;
     $allowed_duration = $saved_timeout_minutes * 60;
     $time_left = $allowed_duration - $elapsed_time;
     
     if ($time_left <= 0) {
         $current['ModeControl'] = 'LOCAL';
         unset($current['WebModeStartTime']);
+        unset($current['web_mode_start_time']);
         file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT), LOCK_EX);
+        $mode_control = 'LOCAL';
         $time_left = 0;
     }
 } else {
-    if (isset($current['WebModeStartTime'])) {
+    if (isset($current['WebModeStartTime']) || isset($current['web_mode_start_time'])) {
         unset($current['WebModeStartTime']);
+        unset($current['web_mode_start_time']);
         file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT), LOCK_EX);
     }
     $time_left = 0;
@@ -44,13 +79,12 @@ if (isset($current['ModeControl']) && $current['ModeControl'] == 'WEB') {
 
 // 3. Proses Data saat Form Dikirim (POST)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $mode = isset($_POST['mode']) ? $_POST['mode'] : ($current['ModeControl'] ?? 'WEB');
+    $mode = isset($_POST['mode']) ? $_POST['mode'] : $mode_control;
     
-    // Deteksi status secara akurat dari tombol yang ditekan atau input tersembunyi
     if (isset($_POST['status'])) {
         $status = $_POST['status'];
     } else {
-        $status = isset($_POST['current_status_hidden']) ? $_POST['current_status_hidden'] : ($current['ExtStatusTrading'] ?? 'ON');
+        $status = isset($_POST['current_status_hidden']) ? $_POST['current_status_hidden'] : $ext_status;
     }
     
     if (empty($status) || $status === 'null') {
@@ -60,51 +94,46 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $new_timeout = isset($_POST['web_timeout_input']) ? (int)$_POST['web_timeout_input'] : $saved_timeout_minutes;
     if ($new_timeout <= 0) $new_timeout = 15;
 
-    // Logika penentuan WebModeStartTime baru
-    $web_start_time = $current['WebModeStartTime'] ?? null;
-    if ($mode == 'WEB' && (!isset($current['ModeControl']) || $current['ModeControl'] != 'WEB')) {
+    $web_start_time = isset($current['WebModeStartTime']) ? $current['WebModeStartTime'] : ($current['web_mode_start_time'] ?? null);
+    if ($mode == 'WEB' && $mode_control != 'WEB') {
         $web_start_time = $current_time;
     } elseif ($mode == 'LOCAL') {
         $web_start_time = null;
     }
 
-    // Menggabungkan seluruh input agar parameter tidak ter-reset saat klik tombol Status
+    // Menyusun data dengan toleransi fallback jika input form kosong
     $data = [
         "ModeControl"       => $mode,
         "ExtStatusTrading"  => $status,
         "WebTimeoutMinutes" => $new_timeout,
-        "ADXMax"            => isset($_POST['adx_max']) ? (int)$_POST['adx_max'] : (int)($current['ADXMax'] ?? 30),
-        "EMA"               => isset($_POST['ema']) ? (int)$_POST['ema'] : (int)($current['EMA'] ?? 50),
-        "GridStep"          => isset($_POST['grid_step']) ? (int)$_POST['grid_step'] : (int)($current['GridStep'] ?? 500),
-        "MaxLayer"          => isset($_POST['max_layer']) ? (int)$_POST['max_layer'] : (int)($current['MaxLayer'] ?? 10),
-        "TP_G1"             => isset($_POST['tp_g1']) ? (float)$_POST['tp_g1'] : (float)($current['TP_G1'] ?? 2.0),
-        "TP_G2"             => isset($_POST['tp_g2']) ? (float)$_POST['tp_g2'] : (float)($current['TP_G2'] ?? 8.0),
-        "TP_G3"             => isset($_POST['tp_g3']) ? (float)$_POST['tp_g3'] : (float)($current['TP_G3'] ?? 20.0),
-        "TP_G4"             => isset($_POST['tp_g4']) ? (float)$_POST['tp_g4'] : (float)($current['TP_G4'] ?? 50.0),
-        "DailyTarget"       => isset($_POST['daily_target']) ? (float)$_POST['daily_target'] : (float)($current['DailyTarget'] ?? 3000.0),
-        "MaxLoss"           => isset($_POST['max_loss']) ? (float)$_POST['max_loss'] : (float)($current['MaxLoss'] ?? 2500.0)
+        "ADXMax"            => isset($_POST['adx_max']) && $_POST['adx_max'] !== '' ? (int)$_POST['adx_max'] : (int)get_val($current, 'ADXMax', 30),
+        "EMA"               => isset($_POST['ema']) && $_POST['ema'] !== '' ? (int)$_POST['ema'] : (int)get_val($current, 'EMA', 50),
+        "GridStep"          => isset($_POST['grid_step']) && $_POST['grid_step'] !== '' ? (int)$_POST['grid_step'] : (int)get_val($current, 'GridStep', 500),
+        "MaxLayer"          => isset($_POST['max_layer']) && $_POST['max_layer'] !== '' ? (int)$_POST['max_layer'] : (int)get_val($current, 'MaxLayer', 10),
+        "TP_G1"             => isset($_POST['tp_g1']) && $_POST['tp_g1'] !== '' ? (float)$_POST['tp_g1'] : (float)get_val($current, 'TP_G1', 2.0),
+        "TP_G2"             => isset($_POST['tp_g2']) && $_POST['tp_g2'] !== '' ? (float)$_POST['tp_g2'] : (float)get_val($current, 'TP_G2', 8.0),
+        "TP_G3"             => isset($_POST['tp_g3']) && $_POST['tp_g3'] !== '' ? (float)$_POST['tp_g3'] : (float)get_val($current, 'TP_G3', 20.0),
+        "TP_G4"             => isset($_POST['tp_g4']) && $_POST['tp_g4'] !== '' ? (float)$_POST['tp_g4'] : (float)get_val($current, 'TP_G4', 50.0),
+        "DailyTarget"       => isset($_POST['daily_target']) && $_POST['daily_target'] !== '' ? (float)$_POST['daily_target'] : (float)get_val($current, 'DailyTarget', 3000.0),
+        "MaxLoss"           => isset($_POST['max_loss']) && $_POST['max_loss'] !== '' ? (float)$_POST['max_loss'] : (float)get_val($current, 'MaxLoss', 2500.0)
     ];
     
     if ($web_start_time !== null) {
         $data["WebModeStartTime"] = $web_start_time;
     }
     
-    // Simpan ke berkas dengan proteksi LOCK_EX (anti korup berkas)
     file_put_contents($config_file, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
     $message = "✅ Perubahan berhasil dikirim ke EA";
     
-    // Sinkronisasi ulang data untuk rendering antarmuka
+    // Refresh variable state untuk antarmuka HTML
     $current = $data;
+    $mode_control = $mode;
+    $ext_status = $status;
     $saved_timeout_minutes = $new_timeout;
-    
-    if (isset($current['WebModeStartTime'])) {
-        $time_left = ($saved_timeout_minutes * 60) - (time() - $current['WebModeStartTime']);
-    } else {
-        $time_left = 0;
-    }
+    $time_left = ($web_start_time !== null) ? ($saved_timeout_minutes * 60) - (time() - $web_start_time) : 0;
 }
 
-$is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
+$is_local = ($mode_control == 'LOCAL');
 ?>
 
 <!DOCTYPE html>
@@ -155,38 +184,38 @@ $is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
             </div>
             
             <select name="mode" id="mode_select" onchange="toggleInputLock(this.value)">
-                <option value="WEB" <?= ($current['ModeControl'] ?? 'WEB')=='WEB'?'selected':'' ?>>WEB CONTROL</option>
-                <option value="LOCAL" <?= ($current['ModeControl'] ?? 'WEB')=='LOCAL'?'selected':'' ?>>LOCAL (Manual)</option>
+                <option value="WEB" <?= $mode_control=='WEB'?'selected':'' ?>>WEB CONTROL</option>
+                <option value="LOCAL" <?= $mode_control=='LOCAL'?'selected':'' ?>>LOCAL (Manual)</option>
             </select>
             
             <label>Status Trading</label>
-            <input type="hidden" name="current_status_hidden" value="<?= $current['ExtStatusTrading'] ?? 'ON' ?>">
+            <input type="hidden" name="current_status_hidden" value="<?= $ext_status ?>">
             
             <div class="btn-group">
-                <button type="submit" name="status" value="ON" class="btn-status <?= ($current['ExtStatusTrading'] ?? 'ON')=='ON'?'active-btn':'' ?>" style="background:#16a34a;">✅<br>ON</button>
-                <button type="submit" name="status" value="OFF" class="btn-status <?= ($current['ExtStatusTrading'] ?? '')=='OFF'?'active-btn':'' ?>" style="background:#ca8a04;">⏸️<br>OFF</button>
-                <button type="submit" name="status" value="EMERGENCY" class="btn-status <?= ($current['ExtStatusTrading'] ?? '')=='EMERGENCY'?'active-btn':'' ?>" style="background:#dc2626;">🚨<br>EMER</button>
+                <button type="submit" name="status" value="ON" class="btn-status <?= $ext_status=='ON'?'active-btn':'' ?>" style="background:#16a34a;">✅<br>ON</button>
+                <button type="submit" name="status" value="OFF" class="btn-status <?= $ext_status=='OFF'?'active-btn':'' ?>" style="background:#ca8a04;">⏸️<br>OFF</button>
+                <button type="submit" name="status" value="EMERGENCY" class="btn-status <?= $ext_status=='EMERGENCY'?'active-btn':'' ?>" style="background:#dc2626;">🚨<br>EMER</button>
             </div>
 
             <div class="grid-2">
-                <div><label>ADX Max</label><input type="number" name="adx_max" class="param-input" value="<?= $current['ADXMax'] ?? 30 ?>"></div>
-                <div><label>EMA</label><input type="number" name="ema" class="param-input" value="<?= $current['EMA'] ?? 50 ?>"></div>
+                <div><label>ADX Max</label><input type="number" name="adx_max" class="param-input" value="<?= get_val($current, 'ADXMax', 30) ?>"></div>
+                <div><label>EMA</label><input type="number" name="ema" class="param-input" value="<?= get_val($current, 'EMA', 50) ?>"></div>
             </div>
             <div class="grid-2">
-                <div><label>Grid Step</label><input type="number" name="grid_step" class="param-input" value="<?= $current['GridStep'] ?? 500 ?>"></div>
-                <div><label>Max Layer</label><input type="number" name="max_layer" class="param-input" value="<?= $current['MaxLayer'] ?? 10 ?>"></div>
+                <div><label>Grid Step</label><input type="number" name="grid_step" class="param-input" value="<?= get_val($current, 'GridStep', 500) ?>"></div>
+                <div><label>Max Layer</label><input type="number" name="max_layer" class="param-input" value="<?= get_val($current, 'MaxLayer', 10) ?>"></div>
             </div>
             <div class="grid-2">
-                <div><label>TP G1</label><input type="number" step="0.1" name="tp_g1" class="param-input" value="<?= $current['TP_G1'] ?? 2.0 ?>"></div>
-                <div><label>TP G2</label><input type="number" step="0.1" name="tp_g2" class="param-input" value="<?= $current['TP_G2'] ?? 8.0 ?>"></div>
+                <div><label>TP G1</label><input type="number" step="0.1" name="tp_g1" class="param-input" value="<?= get_val($current, 'TP_G1', 2.0) ?>"></div>
+                <div><label>TP G2</label><input type="number" step="0.1" name="tp_g2" class="param-input" value="<?= get_val($current, 'TP_G2', 8.0) ?>"></div>
             </div>
             <div class="grid-2">
-                <div><label>TP G3</label><input type="number" step="0.1" name="tp_g3" class="param-input" value="<?= $current['TP_G3'] ?? 20.0 ?>"></div>
-                <div><label>TP G4</label><input type="number" step="0.1" name="tp_g4" class="param-input" value="<?= $current['TP_G4'] ?? 50.0 ?>"></div>
+                <div><label>TP G3</label><input type="number" step="0.1" name="tp_g3" class="param-input" value="<?= get_val($current, 'TP_G3', 20.0) ?>"></div>
+                <div><label>TP G4</label><input type="number" step="0.1" name="tp_g4" class="param-input" value="<?= get_val($current, 'TP_G4', 50.0) ?>"></div>
             </div>
             <div class="grid-2">
-                <div><label>Daily Target</label><input type="number" step="0.1" name="daily_target" class="param-input" value="<?= $current['DailyTarget'] ?? 3000.0 ?>"></div>
-                <div><label>Max Loss</label><input type="number" step="0.1" name="max_loss" class="param-input" value="<?= $current['MaxLoss'] ?? 2500.0 ?>"></div>
+                <div><label>Daily Target</label><input type="number" step="0.1" name="daily_target" class="param-input" value="<?= get_val($current, 'DailyTarget', 3000.0) ?>"></div>
+                <div><label>Max Loss</label><input type="number" step="0.1" name="max_loss" class="param-input" value="<?= get_val($current, 'MaxLoss', 2500.0) ?>"></div>
             </div>
 
             <button type="submit" class="update-btn">SIMPAN PERUBAHAN PARAMETER</button>
@@ -194,7 +223,6 @@ $is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
     </div>
 
     <script>
-        // Kunci kolom input jika mode berada dalam status LOCAL agar aman
         function toggleInputLock(selectedMode) {
             var inputs = document.getElementsByClassName('param-input');
             for (var i = 0; i < inputs.length; i++) {
@@ -214,7 +242,6 @@ $is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
 
     <?php if(!$is_local && $time_left > 0): ?>
     <script>
-        // Hitung mundur di sisi klien untuk reload halaman saat waktu habis
         var timeLeft = <?= $time_left ?>;
         var timerDisplay = document.getElementById('timer_display');
         var countdown = setInterval(function() {
