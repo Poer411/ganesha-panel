@@ -1,17 +1,16 @@
 {
-    "ModeControl": "WEB",
+    "ModeControl": "LOCAL",
     "ExtStatusTrading": "ON",
-    "WebTimeoutMinutes": 60,
+    "WebTimeoutMinutes": 20,
     "ADXMax": 50,
     "EMA": 50,
-    "GridStep": 50,
+    "GridStep": 100,
     "MaxLayer": 15,
     "TP_G1": 2,
     "TP_G2": 8,
     "TP_G3": 20,
     "TP_G4": 55,
     "DailyTarget": 2000,
-    "MaxLoss": 1000,
-    "AutoCloseFriday": false,
-    "WebModeStartTime": 1784822016
+    "MaxLoss": 5000,
+    "AutoCloseFriday": true
 }
