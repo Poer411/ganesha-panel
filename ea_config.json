@@ -10,7 +10,7 @@
     "TP_G2": 8,
     "TP_G3": 20,
     "TP_G4": 55,
-    "DailyTarget": 2000,
+    "DailyTarget": 1000,
     "MaxLoss": 5000,
     "AutoCloseFriday": true,
     "WebModeStartTime": 1784820848
