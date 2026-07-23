@@ -2,6 +2,7 @@
 $config_file = 'ea_config.json';
 $std_file = 'ea_config_std.json';
 
+// 1. Validasi awal file konfigurasi
 if (!file_exists($config_file) || filesize($config_file) < 5) {
     if (file_exists($std_file)) {
         copy($std_file, $config_file);
@@ -16,10 +17,11 @@ if (file_exists($config_file)) {
 $saved_timeout_minutes = isset($current['WebTimeoutMinutes']) ? (int)$current['WebTimeoutMinutes'] : 15;
 $current_time = time();
 
+// 2. Logika Hitung Mundur (Timeout) untuk Mode WEB
 if (isset($current['ModeControl']) && $current['ModeControl'] == 'WEB') {
     if (!isset($current['WebModeStartTime'])) {
         $current['WebModeStartTime'] = $current_time;
-        file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT));
+        file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT), LOCK_EX);
     }
     
     $elapsed_time = $current_time - $current['WebModeStartTime'];
@@ -29,20 +31,22 @@ if (isset($current['ModeControl']) && $current['ModeControl'] == 'WEB') {
     if ($time_left <= 0) {
         $current['ModeControl'] = 'LOCAL';
         unset($current['WebModeStartTime']);
-        file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT));
+        file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT), LOCK_EX);
         $time_left = 0;
     }
 } else {
     if (isset($current['WebModeStartTime'])) {
         unset($current['WebModeStartTime']);
-        file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT));
+        file_put_contents($config_file, json_encode($current, JSON_PRETTY_PRINT), LOCK_EX);
     }
     $time_left = 0;
 }
 
+// 3. Proses Data saat Form Dikirim (POST)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $mode   = isset($_POST['mode']) ? $_POST['mode'] : ($current['ModeControl'] ?? 'WEB');
+    $mode = isset($_POST['mode']) ? $_POST['mode'] : ($current['ModeControl'] ?? 'WEB');
     
+    // PERBAIKAN: Deteksi status secara akurat dari tombol yang ditekan atau input tersembunyi
     if (isset($_POST['status'])) {
         $status = $_POST['status'];
     } else {
@@ -54,39 +58,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     $new_timeout = isset($_POST['web_timeout_input']) ? (int)$_POST['web_timeout_input'] : $saved_timeout_minutes;
-    if($new_timeout <= 0) $new_timeout = 15;
+    if ($new_timeout <= 0) $new_timeout = 15;
 
+    // Logika penentuan WebModeStartTime baru
     $web_start_time = $current['WebModeStartTime'] ?? null;
-    
     if ($mode == 'WEB' && (!isset($current['ModeControl']) || $current['ModeControl'] != 'WEB')) {
         $web_start_time = $current_time;
     } elseif ($mode == 'LOCAL') {
         $web_start_time = null;
     }
 
+    // Menggabungkan seluruh input agar parameter di bawah TIDAK reset saat klik tombol Status
     $data = [
-        "ModeControl"      => $mode,
-        "ExtStatusTrading" => $status,
-        "WebTimeoutMinutes"=> $new_timeout,
-        "ADXMax"           => isset($_POST['adx_max']) ? (int)$_POST['adx_max'] : (int)($current['ADXMax'] ?? 30),
-        "EMA"              => isset($_POST['ema']) ? (int)$_POST['ema'] : (int)($current['EMA'] ?? 50),
-        "GridStep"         => isset($_POST['grid_step']) ? (int)$_POST['grid_step'] : (int)($current['GridStep'] ?? 500),
-        "MaxLayer"         => isset($_POST['max_layer']) ? (int)$_POST['max_layer'] : (int)($current['MaxLayer'] ?? 10),
-        "TP_G1"            => isset($_POST['tp_g1']) ? (float)$_POST['tp_g1'] : (float)($current['TP_G1'] ?? 2.0),
-        "TP_G2"            => isset($_POST['tp_g2']) ? (float)$_POST['tp_g2'] : (float)($current['TP_G2'] ?? 8.0),
-        "TP_G3"            => isset($_POST['tp_g3']) ? (float)$_POST['tp_g3'] : (float)($current['TP_G3'] ?? 20.0),
-        "TP_G4"            => isset($_POST['tp_g4']) ? (float)$_POST['tp_g4'] : (float)($current['TP_G4'] ?? 50.0),
-        "DailyTarget"      => isset($_POST['daily_target']) ? (float)$_POST['daily_target'] : (float)($current['DailyTarget'] ?? 3000.0),
-        "MaxLoss"          => isset($_POST['max_loss']) ? (float)$_POST['max_loss'] : (float)($current['MaxLoss'] ?? 2500.0)
+        "ModeControl"       => $mode,
+        "ExtStatusTrading"  => $status,
+        "WebTimeoutMinutes" => $new_timeout,
+        "ADXMax"            => isset($_POST['adx_max']) ? (int)$_POST['adx_max'] : (int)($current['ADXMax'] ?? 30),
+        "EMA"               => isset($_POST['ema']) ? (int)$_POST['ema'] : (int)($current['EMA'] ?? 50),
+        "GridStep"          => isset($_POST['grid_step']) ? (int)$_POST['grid_step'] : (int)($current['GridStep'] ?? 500),
+        "MaxLayer"          => isset($_POST['max_layer']) ? (int)$_POST['max_layer'] : (int)($current['MaxLayer'] ?? 10),
+        "TP_G1"             => isset($_POST['tp_g1']) ? (float)$_POST['tp_g1'] : (float)($current['TP_G1'] ?? 2.0),
+        "TP_G2"             => isset($_POST['tp_g2']) ? (float)$_POST['tp_g2'] : (float)($current['TP_G2'] ?? 8.0),
+        "TP_G3"             => isset($_POST['tp_g3']) ? (float)$_POST['tp_g3'] : (float)($current['TP_G3'] ?? 20.0),
+        "TP_G4"             => isset($_POST['tp_g4']) ? (float)$_POST['tp_g4'] : (float)($current['TP_G4'] ?? 50.0),
+        "DailyTarget"       => isset($_POST['daily_target']) ? (float)$_POST['daily_target'] : (float)($current['DailyTarget'] ?? 3000.0),
+        "MaxLoss"           => isset($_POST['max_loss']) ? (float)$_POST['max_loss'] : (float)($current['MaxLoss'] ?? 2500.0)
     ];
     
     if ($web_start_time !== null) {
         $data["WebModeStartTime"] = $web_start_time;
     }
     
-    file_put_contents($config_file, json_encode($data, JSON_PRETTY_PRINT));
+    // Simpan ke file dengan proteksi LOCK_EX (anti korup berkas)
+    file_put_contents($config_file, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
     $message = "✅ Perubahan berhasil dikirim ke EA";
     
+    // Sinkronisasi data terbaru untuk merender ulang UI HTML
     $current = $data;
     $saved_timeout_minutes = $new_timeout;
     
@@ -115,16 +122,13 @@ $is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
         .msg { background: #065f46; color: #34d399; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 15px; }
         label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-top: 10px; text-transform: uppercase; }
         select, input { width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; color: white; border-radius: 6px; margin-top: 4px; box-sizing: border-box; transition: 0.2s; font-size: 1.1rem; }
-        
-        /* DIPERBARUI: Dari 4 kolom repeat(4, 1fr) menjadi 3 kolom agar 3 tombol terbagi rata simetris */
         .btn-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
-        
-        .btn-status { padding: 8px 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold; color: white; opacity: 0.4; transition: 0.2s; }
+        .btn-status { padding: 12px 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: white; opacity: 0.4; transition: 0.2s; }
         .active-btn { opacity: 1 !important; outline: 2px solid #fff; transform: scale(1.05); }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         button.update-btn { width: 100%; padding: 14px; background: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 20px; cursor: pointer; }
         .setting-box-top { font-size: 0.75rem; color: #f43f5e; font-weight: bold; margin-top: 4px; text-align: right; display: flex; align-items: center; gap: 4px; }
-        .input-menit { width: 45px; padding: 2px 4px; background: #475569; border: none; color: white; border-radius: 4px; font-size: 0.75rem; text-align: center; margin-top: 0; margin-left: 2px; }
+        .input-menit { width: 50px; padding: 2px 4px; background: #475569; border: none; color: white; border-radius: 4px; font-size: 0.75rem; text-align: center; margin-top: 0; margin-left: 2px; }
     </style>
 </head>
 <body>
@@ -135,6 +139,7 @@ $is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
         </div>
 
         <?php if(isset($message)) echo "<div class='msg'>$message</div>"; ?>
+        
         <form method="POST">
             <div style="display:flex; justify-content:space-between; align-items:flex-end;">
                 <label style="margin-top:0;">Mode Kontrol</label>
@@ -144,7 +149,7 @@ $is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
                     <span>Mnt</span>
                     <?php if(!$is_local && $time_left > 0): ?>
                         <span style="color:#94a3b8; margin-left: 5px;">|</span>
-                        <span id="timer_display" style="margin-left: 5px;">--:--</span>
+                        <span id="timer_display" style="margin-left: 5px; color: #34d399;">--:--</span>
                     <?php endif; ?>
                 </div>
             </div>
@@ -155,6 +160,7 @@ $is_local = (($current['ModeControl'] ?? 'WEB') == 'LOCAL');
             </select>
             
             <label>Status Trading</label>
+            <!-- Sinkronisasi status tersembunyi -->
             <input type="hidden" name="current_status_hidden" value="<?= $current['ExtStatusTrading'] ?? 'ON' ?>">
             
             <div class="btn-group">
