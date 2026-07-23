@@ -1,353 +1,708 @@
 <!DOCTYPE html>
+
 <html lang="id">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ganesha Panel - Ultra-Clean Tech</title>
+
+    <title>Ganesha Panel - Ultra Clean Tech</title>
+
     <style>
-        :root {
-            --bg-main: #0f172a;
-            --bg-card: #1e293b;
-            --bg-input-active: #334155;
-            --bg-input-locked: #263238;
-            --text-active: #ffffff;
-            --text-locked: #78909c;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --success: #10b981;
-            --warning: #f59e0b;
-        }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-main);
-            color: #f8fafc;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+        body { background: #0f172a; color: #f8fafc; font-family: sans-serif; padding: 20px; }
 
-        .panel-container {
-            background-color: var(--bg-card);
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 550px;
-        }
+        .card { max-width: 500px; margin: auto; background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5); }
 
-        h2 {
-            margin-top: 0;
-            text-align: center;
-            color: #f1f5f9;
-            border-bottom: 2px solid #334155;
-            padding-bottom: 15px;
-        }
+        .header-container { text-align: center; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 15px; }
 
-        .section-title {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #94a3b8;
-            margin: 20px 0 10px 0;
-        }
+        .header-title { font-size: 1.6rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; }
 
-        .form-group {
-            margin-bottom: 15px;
-        }
+        .header-subtitle { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; font-weight: normal; letter-spacing: 0.5px; }
 
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.9rem;
-            color: #cbd5e1;
-        }
+        .msg { background: #065f46; color: #34d399; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 15px; font-weight: bold; display: none; }
 
-        input, select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #475569;
-            border-radius: 6px;
-            box-sizing: border-box;
-            transition: all 0.3s ease;
-        }
+        .err-msg { background: #7f1d1d; color: #fca5a5; padding: 12px; border-radius: 6px; text-align: left; margin-bottom: 15px; font-size: 0.85rem; line-height: 1.4; border: 1px solid #f87171; display: none; white-space: pre-wrap; word-break: break-all; }
 
-        /* Mode Selector Custom */
-        .mode-container {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+        label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-top: 10px; text-transform: uppercase; }
 
-        .mode-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            background-color: #334155;
-            color: #94a3b8;
-            transition: all 0.2s;
-        }
+        select, input { width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; color: white; border-radius: 6px; margin-top: 4px; box-sizing: border-box; transition: 0.2s; font-size: 1.1rem; }
 
-        .mode-btn.active[data-mode="LOCAL"] {
-            background-color: var(--warning);
-            color: #0f172a;
-        }
+        .btn-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
 
-        .mode-btn.active[data-mode="REMOTE"] {
-            background-color: var(--success);
-            color: white;
-        }
+        .btn-status { padding: 12px 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: white; opacity: 0.4; transition: 0.2s; }
 
-        .timer-banner {
-            background-color: rgba(245, 158, 11, 0.1);
-            border: 1px solid var(--warning);
-            color: var(--warning);
-            padding: 10px;
-            border-radius: 6px;
-            text-align: center;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
-            display: none;
-        }
+        .active-btn { opacity: 1 !important; outline: 2px solid #fff; transform: scale(1.05); }
 
-        .btn-submit {
-            width: 100%;
-            padding: 12px;
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 1rem;
-            margin-top: 10px;
-        }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
-        .btn-submit:hover {
-            background-color: var(--primary-hover);
-        }
+        button.update-btn { width: 100%; padding: 14px; background: #0284c7; color: white; border: none; border-radius: 8px; font-weight: bold; margin-top: 20px; cursor: pointer; }
 
-        .status-box {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            text-align: center;
-            display: none;
-        }
+        .setting-box-top { font-size: 0.75rem; color: #f43f5e; font-weight: bold; margin-top: 4px; text-align: right; display: flex; align-items: center; gap: 4px; }
+
+        .input-menit { width: 50px; padding: 2px 4px; background: #475569; border: none; color: white; border-radius: 4px; font-size: 0.75rem; text-align: center; margin-top: 0; margin-left: 2px; }
+
+        .token-box { background: #111827; border: 1px dashed #4b5563; padding: 10px; border-radius: 6px; margin-bottom: 15px; }
+
     </style>
+
 </head>
+
 <body>
 
-<div class="panel-container">
-    <h2>GANESHA PANEL</h2>
-    
-    <!-- GitHub API Credentials -->
-    <div class="section-title">Koneksi GitHub Repository</div>
-    <div class="form-group">
-        <label for="gh-token">GitHub Personal Access Token</label>
-        <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx">
-    </div>
-    <div class="form-group">
-        <label for="gh-repo">Repository (Owner/Nama-Repo)</label>
-        <input type="text" id="gh-repo" placeholder="username/nama-repo">
-    </div>
+    <div class="card">
 
-    <!-- Mode Control -->
-    <div class="section-title">Mode Kontrol EA</div>
-    <div class="mode-container">
-        <button type="button" class="mode-btn active" data-mode="LOCAL" onclick="setControlMode('LOCAL')">LOCAL</button>
-        <button type="button" class="mode-btn" data-mode="REMOTE" onclick="setControlMode('REMOTE')">REMOTE</button>
-    </div>
+        <div class="header-container">
 
-    <!-- UX Fallback Timer Banner -->
-    <div id="timer-banner" class="timer-banner">
-        Mode REMOTE Aktif. Kembali ke mode LOCAL otomatis dalam: <span id="countdown">300</span> detik.
-    </div>
+            <h2 class="header-title"><span>🧪</span> Ganesha Panel</h2>
 
-    <!-- EA Trading Parameters -->
-    <div class="section-title">Parameter Kontrol (Ultra-Clean Tech)</div>
-    
-    <div class="form-group">
-        <label for="ea-lot">Ukuran Lot (Lot Size)</label>
-        <input type="number" id="ea-lot" class="param-input" step="0.01" value="0.01">
-    </div>
+            <div class="header-subtitle">Ultra-Clean Tech Core</div>
 
-    <div class="form-group">
-        <label for="ea-max-orders">Maksimal Posisi (Max Orders)</label>
-        <input type="number" id="ea-max-orders" class="param-input" value="5">
-    </div>
+        </div>
 
-    <div class="form-group">
-        <label for="ea-autoclose">Auto-Close Friday (23:00)</label>
-        <select id="ea-autoclose" class="param-input">
-            <option value="true">Aktif (Close Semua Posisi)</option>
-            <option value="false">Nonaktif</option>
-        </select>
-    </div>
 
-    <button type="button" class="btn-submit" onclick="pushConfiguration()">Kirim Konfigurasi ke GitHub</button>
-    
-    <div id="status-box" class="status-box"></div>
-</div>
 
-<script>
-    let currentSha = null;
-    let currentMode = "LOCAL";
-    let fallbackTimer = null;
-    let timeLeft = 300; // 5 Menit pengaman fallback
+        <!-- Otorisasi Kredensial Akses GitHub -->
 
-    // Inisialisasi awal saat halaman dimuat
-    window.onload = function() {
-        toggleInputLock("LOCAL");
-    };
+        <div class="token-box">
 
-    // Fungsi Toggle Kunci Input yang Diperbaiki (.disabled)
-    function toggleInputLock(mode) {
-        const inputs = document.getElementsByClassName('param-input');
-        const isLocal = (mode === 'LOCAL');
+            <label style="margin-top:0; color:#38bdf8;">Pengaturan Kredensial GitHub</label>
+
+            <input type="password" id="gh_token" placeholder="Paste Personal Access Token Disini" style="font-size:0.9rem; padding:6px; background:#1f2937;">
+
+        </div>
+
+
+
+        <div id="err_display" class="err-msg"></div>
+
+        <div id="msg_display" class="msg"></div>
+
         
-        for (let i = 0; i < inputs.length; i++) {
-            inputs[i].disabled = isLocal; 
-            inputs[i].style.background = isLocal ? "var(--bg-input-locked)" : "var(--bg-input-active)";
-            inputs[i].style.color = isLocal ? "var(--text-locked)" : "var(--text-active)";
-        }
-    }
 
-    // Mengubah Mode Kontrol & Mengatur Jalannya Timer Fallback
-    function setControlMode(mode) {
-        currentMode = mode;
-        
-        // Update visual tombol aktif
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            if(btn.getAttribute('data-mode') === mode) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
+        <form id="panel_form">
+
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+
+                <label style="margin-top:0;">Mode Kontrol</label>
+
+                <div class="setting-box-top">
+
+                    <span>Maks Web:</span>
+
+                    <input type="number" id="web_timeout_input" class="input-menit" value="60">
+
+                    <span>Mnt</span>
+
+                    <span id="timer_wrapper" style="display:none;">
+
+                        <span style="color:#94a3b8; margin-left: 5px;">|</span>
+
+                        <span id="timer_display" style="margin-left: 5px; color: #34d399;">--:--</span>
+
+                    </span>
+
+                </div>
+
+            </div>
+
+            
+
+            <select id="mode_select">
+
+                <option value="WEB">WEB CONTROL</option>
+
+                <option value="LOCAL" selected>LOCAL (Manual)</option>
+
+            </select>
+
+            
+
+            <label>Status Trading</label>
+
+            <div class="btn-group">
+
+                <button type="button" onclick="setStatus('ON')" id="btn_on" class="btn-status" style="background:#16a34a;">✅<br>ON</button>
+
+                <button type="button" onclick="setStatus('OFF')" id="btn_off" class="btn-status" style="background:#ca8a04;">⏸️<br>OFF</button>
+
+                <button type="button" onclick="setStatus('EMERGENCY')" id="btn_emer" class="btn-status" style="background:#dc2626;">🚨<br>EMER</button>
+
+            </div>
+
+
+
+            <div class="grid-2">
+
+                <div><label>ADX Max</label><input type="number" id="adx_max" class="param-input" value="50"></div>
+
+                <div><label>EMA</label><input type="number" id="ema" class="param-input" value="50"></div>
+
+            </div>
+
+            <div class="grid-2">
+
+                <div><label>Grid Step</label><input type="number" id="grid_step" class="param-input" value="50"></div>
+
+                <div><label>Max Layer</label><input type="number" id="max_layer" class="param-input" value="15"></div>
+
+            </div>
+
+            <div class="grid-2">
+
+                <div><label>TP G1</label><input type="number" step="0.01" id="tp_g1" class="param-input" value="2"></div>
+
+                <div><label>TP G2</label><input type="number" step="0.01" id="tp_g2" class="param-input" value="8"></div>
+
+            </div>
+
+            <div class="grid-2">
+
+                <div><label>TP G3</label><input type="number" step="0.01" id="tp_g3" class="param-input" value="20"></div>
+
+                <div><label>TP G4</label><input type="number" step="0.01" id="tp_g4" class="param-input" value="55"></div>
+
+            </div>
+
+            <div class="grid-2">
+
+                <div><label>Daily Target</label><input type="number" step="0.01" id="daily_target" class="param-input" value="2000"></div>
+
+                <div><label>Max Loss</label><input type="number" step="0.01" id="max_loss" class="param-input" value="1000"></div>
+
+            </div>
+
+            
+
+            <div class="grid-2">
+
+                <div>
+
+                    <label>Auto-Close Friday (23:00)</label>
+
+                    <select id="auto_close_friday" class="param-input">
+
+                        <option value="1">AKTIF</option>
+
+                        <option value="0" selected>NONAKTIF</option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+
+            <button type="submit" class="update-btn">SIMPAN PERUBAHAN PARAMETER</button>
+
+        </form>
+
+    </div>
+
+
+
+    <script>
+
+        // =========================================================================
+
+        // PENTING: UBAH TIGA VARIABEL DI BAWAH INI SESUAI DENGAN AKUN GITHUB ANDA!
+
+        // =========================================================================
+
+        const GH_USER = "Poer411";        // Username GitHub Anda
+
+        const GH_REPO = "ganesha-panel";  // Nama Repositori Anda
+
+        const GH_FILE = "ea_config.json"; // Nama file JSON target konfigurasi
+
+
+
+        let currentData = {};
+
+        let currentSha = "";
+
+        let currentStatus = "ON";
+
+        let countdownInterval;
+
+
+
+        // Load Token dan Data JSON Saat Halaman Pertama Kali Dibuka
+
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const savedToken = localStorage.getItem("gh_pat");
+
+            if(savedToken) document.getElementById("gh_token").value = savedToken;
+
+            
+
+            document.getElementById("mode_select").addEventListener("change", (e) => toggleInputLock(e.target.value));
+
+            document.getElementById("panel_form").addEventListener("submit", handleFormSubmit);
+
+            
+
+            loadConfigFromGitHub();
+
         });
 
-        toggleInputLock(mode);
-        clearInterval(fallbackTimer);
 
-        if (mode === "REMOTE") {
-            timeLeft = 300; 
-            document.getElementById('timer-banner').style.display = 'block';
-            document.getElementById('countdown').innerText = timeLeft;
+
+        // Ambil data fresh langsung dari GitHub API (Mendukung Repo Publik & Private)
+
+        async function loadConfigFromGitHub() {
+
+            try {
+
+                const token = localStorage.getItem("gh_pat") || "";
+
+                const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}?t=${Date.now()}`;
+
+                
+
+                const headers = {};
+
+                if (token) {
+
+                    headers["Authorization"] = `token ${token}`;
+
+                }
+
+
+
+                const res = await fetch(url, { headers });
+
+                
+
+                if (res.status === 404 && !token) {
+
+                    throw new Error("File tidak ditemukan. Jika repositori Anda PRIVATE, masukkan Token di atas terlebih dahulu lalu refresh halaman.");
+
+                }
+
+                
+
+                if (!res.ok) throw new Error(`Server merespon dengan status ${res.status}`);
+
+                
+
+                const json = await res.json();
+
+                currentSha = json.sha; // Simpan hash penanda versi file dari GitHub
+
+                
+
+                // Decode teks base64 dari GitHub ke JSON
+
+                const contentText = decodeURIComponent(escape(atob(json.content)));
+
+                currentData = JSON.parse(contentText);
+
+                
+
+                populateForm(currentData);
+
+                hideAlerts();
+
+            } catch (err) {
+
+                showError("Gagal memuat konfigurasi: " + err.message);
+
+            }
+
+        }
+
+
+
+        // Distribusikan data dari JSON ke kolom input form HTML
+
+        function populateForm(data) {
+
+            document.getElementById("web_timeout_input").value = data.WebTimeoutMinutes || 60;
+
+            document.getElementById("mode_select").value = data.ModeControl || "LOCAL";
+
             
-            // Jalankan hitung mundur sisi klien
-            fallbackTimer = setInterval(() => {
-                timeLeft--;
-                document.getElementById('countdown').innerText = timeLeft;
-                if (timeLeft <= 0) {
-                    showStatus("Waktu habis! Sistem otomatis kembali ke mode LOCAL demi keamanan.", "var(--warning)");
-                    setControlMode("LOCAL");
-                }
-            }, 1000);
-        } else {
-            document.getElementById('timer-banner').style.display = 'none';
+
+            setStatus(data.ExtStatusTrading || "ON");
+
+            
+
+            document.getElementById("adx_max").value = data.ADXMax ?? 50;
+
+            document.getElementById("ema").value = data.EMA ?? 50;
+
+            document.getElementById("grid_step").value = data.GridStep ?? 50;
+
+            document.getElementById("max_layer").value = data.MaxLayer ?? 15;
+
+            
+
+            document.getElementById("tp_g1").value = data.TP_G1 ?? 2;
+
+            document.getElementById("tp_g2").value = data.TP_G2 ?? 8;
+
+            document.getElementById("tp_g3").value = data.TP_G3 ?? 20;
+
+            document.getElementById("tp_g4").value = data.TP_G4 ?? 55;
+
+            
+
+            document.getElementById("daily_target").value = data.DailyTarget ?? 2000;
+
+            document.getElementById("max_loss").value = data.MaxLoss ?? 1000;
+
+            
+
+            document.getElementById("auto_close_friday").value = data.AutoCloseFriday ? "1" : "0";
+
+            
+
+            toggleInputLock(data.ModeControl || "LOCAL");
+
+            initTimer(data);
+
         }
-    }
 
-    // Fungsi Mengirimkan Payload Data JSON ke GitHub Repository
-    async function pushConfiguration() {
-        const token = document.getElementById('gh-token').value;
-        const repo = document.getElementById('gh-repo').value;
-        const path = "ea_config.json"; // Nama file target konfigurasi EA
 
-        if (!token || !repo) {
-            showStatus("Mohon lengkapi Token dan Nama Repository GitHub Anda!", "red");
-            return;
+
+        function setStatus(status) {
+
+            currentStatus = status;
+
+            document.getElementById("btn_on").classList.remove("active-btn");
+
+            document.getElementById("btn_off").classList.remove("active-btn");
+
+            document.getElementById("btn_emer").classList.remove("active-btn");
+
+            
+
+            if(status === "ON") document.getElementById("btn_on").classList.add("active-btn");
+
+            if(status === "OFF") document.getElementById("btn_off").classList.add("active-btn");
+
+            if(status === "EMERGENCY") document.getElementById("btn_emer").classList.add("active-btn");
+
         }
 
-        showStatus("Menghubungkan ke GitHub...", "var(--primary)");
 
-        const url = `https://api.github.com/repos/${repo}/contents/${path}`;
 
-        try {
-            // Langkah 1: Ambil data SHA terbaru dari GitHub untuk mencegah error 409 Conflict
-            const getResponse = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3+json'
-                }
-            });
+        function toggleInputLock(mode) {
 
-            if (getResponse.status === 200) {
-                const fileData = await getResponse.json();
-                currentSha = fileData.sha;
-            } else if (getResponse.status !== 404) {
-                throw new Error("Gagal melakukan pengecekan data awal di repositori.");
+            const inputs = document.getElementsByClassName('param-input');
+
+            const isLocal = (mode === 'LOCAL');
+
+            for (let i = 0; i < inputs.length; i++) {
+
+                inputs[i].readOnly = isLocal;
+
+                inputs[i].style.background = isLocal ? "#263238" : "#334155";
+
+                inputs[i].style.color = isLocal ? "#78909c" : "white";
+
             }
 
-            // Langkah 2: Bangun kerangka struktur objek data payload
-            const payload = {
-                meta: {
-                    updated_at: new Date().toISOString(),
-                    client_mode: currentMode
-                },
-                config: {
-                    lot_size: parseFloat(document.getElementById('ea-lot').value),
-                    max_orders: parseInt(document.getElementById('ea-max-orders').value),
-                    auto_close_friday_2300: document.getElementById('ea-autoclose').value === "true"
-                }
-            };
-
-            // Enkripsi string data JSON ke bentuk Base64 standard UTF-8 aman
-            const jsonString = JSON.stringify(payload, null, 2);
-            const base64Content = btoa(unescape(encodeURIComponent(jsonString)));
-
-            const bodyData = {
-                message: "Update EA Config via Ganesha Panel",
-                content: base64Content
-            };
-
-            if (currentSha) {
-                bodyData.sha = currentSha;
-            }
-
-            // Langkah 3: Eksekusi Update data via HTTP PUT Request
-            const putResponse = await fetch(url, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/vnd.github.v3+json'
-                },
-                body: JSON.stringify(bodyData)
-            });
-
-            if (putResponse.status === 200 || putResponse.status === 201) {
-                const resData = await putResponse.json();
-                currentSha = resData.content.sha; // Simpan SHA baru hasil update
-                showStatus("Konfigurasi berhasil disimpan dan di-push ke GitHub!", "var(--success)");
-            } else {
-                const errorData = await putResponse.json();
-                throw new Error(errorData.message || "Gagal melakukan pembaruan berkas.");
-            }
-
-        } catch (error) {
-            showStatus(`Error: ${error.message}`, "red");
         }
-    }
 
-    // Helper Utility Komponen Alert Informasi Status Real-Time
-    function showStatus(message, color) {
-        const box = document.getElementById('status-box');
-        box.style.display = 'block';
-        box.style.backgroundColor = color === "red" ? "rgba(239, 68, 68, 0.2)" : color.replace(")", ", 0.2)");
-        box.style.border = `1px solid ${color}`;
-        box.style.color = color === "white" ? "#ffffff" : color;
-        box.innerText = message;
-    }
-</script>
+
+
+        // Jalankan Fitur Timer Hitung Mundur Berbasis Sisi Klien
+
+        function initTimer(data) {
+
+            clearInterval(countdownInterval);
+
+            document.getElementById("timer_wrapper").style.display = "none";
+
+            
+
+            if (data.ModeControl === "WEB" && data.WebModeStartTime) {
+
+                document.getElementById("timer_wrapper").style.display = "inline";
+
+                const start = parseInt(data.WebModeStartTime);
+
+                const limit = parseInt(data.WebTimeoutMinutes || 60) * 60;
+
+                
+
+                countdownInterval = setInterval(() => {
+
+                    const now = Math.floor(Date.now() / 1000);
+
+                    const elapsed = now - start;
+
+                    const timeLeft = limit - elapsed;
+
+                    
+
+                    if (timeLeft <= 0) {
+
+                        clearInterval(countdownInterval);
+
+                        autoFallbackToLocal();
+
+                    } else {
+
+                        let mins = Math.floor(timeLeft / 60);
+
+                        let secs = timeLeft % 60;
+
+                        document.getElementById("timer_display").innerText = 
+
+                            `${mins < 10 ? '0'+mins : mins}:${secs < 10 ? '0'+secs : secs}`;
+
+                    }
+
+                }, 1000);
+
+            }
+
+        }
+
+
+
+        // Eksekusi otomatis jika batas waktu Web Control habis
+
+        function autoFallbackToLocal() {
+
+            document.getElementById("mode_select").value = "LOCAL";
+
+            showError("Waktu batas Web Control habis! Mengembalikan kontrol ke LOCAL...");
+
+            document.getElementById("panel_form").requestSubmit();
+
+        }
+
+
+
+        // Proses Penyimpanan Data ke File GitHub Menggunakan API (Dengan Diagnostik Akurat)
+
+        async function handleFormSubmit(e) {
+
+            e.preventDefault();
+
+            hideAlerts();
+
+            
+
+            const token = document.getElementById("gh_token").value.trim();
+
+            if(!token) {
+
+                showError("⚠️ Token masih kosong! Masukkan GitHub Token Anda di kolom paling atas.");
+
+                return;
+
+            }
+
+            localStorage.setItem("gh_pat", token); // Simpan token secara aman di memori lokal browser
+
+
+
+            const selectedMode = document.getElementById("mode_select").value;
+
+            
+
+            // Siapkan susunan data JSON baru (Safe-Merge agar tidak menimpa data internal dari EA)
+
+            let updatedData = { ...currentData };
+
+            
+
+            updatedData.ModeControl = selectedMode;
+
+            updatedData.ExtStatusTrading = currentStatus;
+
+            updatedData.WebTimeoutMinutes = parseInt(document.getElementById("web_timeout_input").value);
+
+            
+
+            updatedData.ADXMax = parseInt(document.getElementById("adx_max").value);
+
+            updatedData.EMA = parseInt(document.getElementById("ema").value);
+
+            updatedData.GridStep = parseInt(document.getElementById("grid_step").value);
+
+            updatedData.MaxLayer = parseInt(document.getElementById("max_layer").value);
+
+            
+
+            updatedData.TP_G1 = parseFloat(document.getElementById("tp_g1").value);
+
+            updatedData.TP_G2 = parseFloat(document.getElementById("tp_g2").value);
+
+            updatedData.TP_G3 = parseFloat(document.getElementById("tp_g3").value);
+
+            updatedData.TP_G4 = parseFloat(document.getElementById("tp_g4").value);
+
+            
+
+            updatedData.DailyTarget = parseFloat(document.getElementById("daily_target").value);
+
+            updatedData.MaxLoss = parseFloat(document.getElementById("max_loss").value);
+
+            
+
+            updatedData.AutoCloseFriday = (document.getElementById("auto_close_friday").value === "1");
+
+
+
+            // Kelola penanda waktu mulai web
+
+            if (selectedMode === "WEB" && currentData.ModeControl !== "WEB") {
+
+                updatedData.WebModeStartTime = Math.floor(Date.now() / 1000);
+
+            } else if (selectedMode === "LOCAL") {
+
+                delete updatedData.WebModeStartTime;
+
+            }
+
+
+
+            const targetUrl = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}`;
+
+
+
+            try {
+
+                // 1. Cek versi SHA terbaru sebelum menimpa file untuk menghindari konflik data (Status 409)
+
+                const checkRes = await fetch(targetUrl, { 
+
+                    headers: { 'Authorization': `token ${token}` } 
+
+                });
+
+                
+
+                if (!checkRes.ok) {
+
+                    throw new Error(`[Tahap Cek SHA Gagal] Server merespon dengan kode ${checkRes.status}.\nAlamat API yang diakses: ${targetUrl}`);
+
+                }
+
+                
+
+                const checkJson = await checkRes.json();
+
+                currentSha = checkJson.sha;
+
+
+
+                // 2. Encode content data baru ke format Base64 untuk dikirim ke API GitHub
+
+                const utf8Bytes = new TextEncoder().encode(JSON.stringify(updatedData, null, 4));
+
+                const base64Content = btoa(String.fromCharCode(...utf8Bytes));
+
+
+
+                const bodyPayload = {
+
+                    message: "Pembaruan parameter via Ganesha Panel Web",
+
+                    content: base64Content,
+
+                    sha: currentSha
+
+                };
+
+
+
+                // 3. Kirim data pembaruan menggunakan metode PUT
+
+                const saveRes = await fetch(targetUrl, {
+
+                    method: "PUT",
+
+                    headers: {
+
+                        "Authorization": `token ${token}`,
+
+                        "Content-Type": "application/json"
+
+                    },
+
+                    body: JSON.stringify(bodyPayload)
+
+                });
+
+
+
+                if(!saveRes.ok) {
+
+                    const errData = await saveRes.json();
+
+                    throw new Error(`[Tahap Simpan Gagal] ${errData.message || 'Error tidak diketahui'}`);
+
+                }
+
+
+
+                showSuccess("✅ Perubahan berhasil dikomit langsung ke GitHub Repository!");
+
+                currentData = updatedData;
+
+                initTimer(currentData);
+
+            } catch (err) {
+
+                // Tampilkan diagnosis URL lengkap untuk mempermudah pengecekan jika ada salah ketik nama repo/user
+
+                showError(`🚨 DIAGNOSIS ERROR:\n${err.message}\n\n👉 TIPS: Pastikan variabel USERNAME "${GH_USER}" dan REPO "${GH_REPO}" di bagian bawah script HTML Anda sudah diubah dan ditulis sama persis (huruf besar/kecil) dengan akun GitHub Anda.`);
+
+            }
+
+        }
+
+
+
+        function showError(msg) {
+
+            const errDiv = document.getElementById("err_display");
+
+            errDiv.innerText = msg;
+
+            errDiv.style.display = "block";
+
+        }
+
+
+
+        function showSuccess(msg) {
+
+            const msgDiv = document.getElementById("msg_display");
+
+            msgDiv.innerText = msg;
+
+            msgDiv.style.display = "block";
+
+            setTimeout(() => msgDiv.style.display = "none", 4000);
+
+        }
+
+
+
+        function hideAlerts() {
+
+            document.getElementById("err_display").style.display = "none";
+
+            document.getElementById("msg_display").style.display = "none";
+
+        }
+
+    </script>
 
 </body>
-</html>
+
+</html> 
+
