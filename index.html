@@ -82,19 +82,18 @@
                 <div><label>TP G3</label><input type="number" step="0.01" id="tp_g3" class="param-input" value="20"></div>
                 <div><label>TP G4</label><input type="number" step="0.01" id="tp_g4" class="param-input" value="55"></div>
             </div>
+            <!-- TAMBAHAN SINKRONISASI 7 GROUP TARGET PROFIT EA -->
+            <div class="grid-2">
+                <div><label>TP G5</label><input type="number" step="0.01" id="tp_g5" class="param-input" value="150"></div>
+                <div><label>TP G6</label><input type="number" step="0.01" id="tp_g6" class="param-input" value="450"></div>
+            </div>
+            <div class="grid-2">
+                <div><label>TP G7</label><input type="number" step="0.01" id="tp_g7" class="param-input" value="1400"></div>
+                <div></div>
+            </div>
             <div class="grid-2">
                 <div><label>Daily Target</label><input type="number" step="0.01" id="daily_target" class="param-input" value="2000"></div>
                 <div><label>Max Loss</label><input type="number" step="0.01" id="max_loss" class="param-input" value="1000"></div>
-            </div>
-            
-            <div class="grid-2">
-                <div>
-                    <label>Auto-Close Friday (23:00)</label>
-                    <select id="auto_close_friday" class="param-input">
-                        <option value="1">AKTIF</option>
-                        <option value="0" selected>NONAKTIF</option>
-                    </select>
-                </div>
             </div>
 
             <button type="submit" class="update-btn">SIMPAN PERUBAHAN PARAMETER</button>
@@ -174,11 +173,13 @@
             document.getElementById("tp_g2").value = data.TP_G2 ?? 8;
             document.getElementById("tp_g3").value = data.TP_G3 ?? 20;
             document.getElementById("tp_g4").value = data.TP_G4 ?? 55;
+            // POPULATE DATA BARU GROUP 5 - 7
+            document.getElementById("tp_g5").value = data.TP_G5 ?? 150;
+            document.getElementById("tp_g6").value = data.TP_G6 ?? 450;
+            document.getElementById("tp_g7").value = data.TP_G7 ?? 1400;
             
             document.getElementById("daily_target").value = data.DailyTarget ?? 2000;
             document.getElementById("max_loss").value = data.MaxLoss ?? 1000;
-            
-            document.getElementById("auto_close_friday").value = data.AutoCloseFriday ? "1" : "0";
             
             toggleInputLock(data.ModeControl || "LOCAL");
             initTimer(data);
@@ -240,7 +241,7 @@
             document.getElementById("panel_form").requestSubmit();
         }
 
-        // Proses Penyimpanan Data ke File GitHub Menggunakan API (Dengan Diagnostik Akurat)
+        // Proses Penyimpanan Data ke File GitHub Menggunakan API
         async function handleFormSubmit(e) {
             e.preventDefault();
             hideAlerts();
@@ -254,7 +255,7 @@
 
             const selectedMode = document.getElementById("mode_select").value;
             
-            // Siapkan susunan data JSON baru (Safe-Merge agar tidak menimpa data internal dari EA)
+            // Siapkan susunan data JSON baru (Safe-Merge)
             let updatedData = { ...currentData };
             
             updatedData.ModeControl = selectedMode;
@@ -270,11 +271,13 @@
             updatedData.TP_G2 = parseFloat(document.getElementById("tp_g2").value);
             updatedData.TP_G3 = parseFloat(document.getElementById("tp_g3").value);
             updatedData.TP_G4 = parseFloat(document.getElementById("tp_g4").value);
+            // PARSING DATA BARU GROUP 5 - 7 KE OBJEK JSON
+            updatedData.TP_G5 = parseFloat(document.getElementById("tp_g5").value);
+            updatedData.TP_G6 = parseFloat(document.getElementById("tp_g6").value);
+            updatedData.TP_G7 = parseFloat(document.getElementById("tp_g7").value);
             
             updatedData.DailyTarget = parseFloat(document.getElementById("daily_target").value);
             updatedData.MaxLoss = parseFloat(document.getElementById("max_loss").value);
-            
-            updatedData.AutoCloseFriday = (document.getElementById("auto_close_friday").value === "1");
 
             // Kelola penanda waktu mulai web
             if (selectedMode === "WEB" && currentData.ModeControl !== "WEB") {
@@ -327,7 +330,6 @@
                 currentData = updatedData;
                 initTimer(currentData);
             } catch (err) {
-                // Tampilkan diagnosis URL lengkap untuk mempermudah pengecekan jika ada salah ketik nama repo/user
                 showError(`🚨 DIAGNOSIS ERROR:\n${err.message}\n\n👉 TIPS: Pastikan variabel USERNAME "${GH_USER}" dan REPO "${GH_REPO}" di bagian bawah script HTML Anda sudah diubah dan ditulis sama persis (huruf besar/kecil) dengan akun GitHub Anda.`);
             }
         }
