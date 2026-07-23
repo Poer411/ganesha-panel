@@ -11,7 +11,7 @@
         .header-title { font-size: 1.6rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; }
         .header-subtitle { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; font-weight: normal; letter-spacing: 0.5px; }
         .msg { background: #065f46; color: #34d399; padding: 12px; border-radius: 6px; text-align: center; margin-bottom: 15px; font-weight: bold; display: none; }
-        .err-msg { background: #7f1d1d; color: #fca5a5; padding: 12px; border-radius: 6px; text-align: left; margin-bottom: 15px; font-size: 0.85rem; line-height: 1.4; border: 1px solid #f87171; display: none; }
+        .err-msg { background: #7f1d1d; color: #fca5a5; padding: 12px; border-radius: 6px; text-align: left; margin-bottom: 15px; font-size: 0.85rem; line-height: 1.4; border: 1px solid #f87171; display: none; white-space: pre-wrap; word-break: break-all; }
         label { display: block; font-size: 0.75rem; font-weight: bold; color: #94a3b8; margin-top: 10px; text-transform: uppercase; }
         select, input { width: 100%; padding: 10px; background: #334155; border: 1px solid #475569; color: white; border-radius: 6px; margin-top: 4px; box-sizing: border-box; transition: 0.2s; font-size: 1.1rem; }
         .btn-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 10px; }
@@ -102,17 +102,19 @@
     </div>
 
     <script>
-        // ISI DENGAN DATA REPO ANDA SENDIRI
-        const GH_USER = "poer411"; 
-        const GH_REPO = "ganesha-panel";
-        const GH_FILE = "ea_config.json";
+        // =========================================================================
+        // PENTING: UBAH TIGA VARIABEL DI BAWAH INI SESUAI DENGAN AKUN GITHUB ANDA!
+        // =========================================================================
+        const GH_USER = "poer411";        // Username GitHub Anda
+        const GH_REPO = "ganesha-panel";  // Nama Repositori Anda
+        const GH_FILE = "ea_config.json"; // Nama file JSON target konfigurasi
 
         let currentData = {};
         let currentSha = "";
         let currentStatus = "ON";
         let countdownInterval;
 
-        // Load Token dan Data JSON Saat Halaman Dibuka
+        // Load Token dan Data JSON Saat Halaman Pertama Kali Dibuka
         document.addEventListener("DOMContentLoaded", () => {
             const savedToken = localStorage.getItem("gh_pat");
             if(savedToken) document.getElementById("gh_token").value = savedToken;
@@ -123,39 +125,38 @@
             loadConfigFromGitHub();
         });
 
-       // Ganti fungsi loadConfigFromGitHub lama dengan yang ini:
-async function loadConfigFromGitHub() {
-    try {
-        // Ambil token dari memori browser jika sudah pernah disimpan sebelumnya
-        const token = localStorage.getItem("gh_pat") || "";
-        const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}?t=${Date.now()}`;
-        
-        const headers = {};
-        if (token) {
-            headers["Authorization"] = `token ${token}`;
-        }
+        // Ambil data fresh langsung dari GitHub API (Mendukung Repo Publik & Private)
+        async function loadConfigFromGitHub() {
+            try {
+                const token = localStorage.getItem("gh_pat") || "";
+                const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}?t=${Date.now()}`;
+                
+                const headers = {};
+                if (token) {
+                    headers["Authorization"] = `token ${token}`;
+                }
 
-        const res = await fetch(url, { headers });
-        
-        // Jika gagal karena repo private dan token belum dimasukkan
-        if (res.status === 404 && !token) {
-            throw new Error("File tidak ditemukan. Jika repositori Anda PRIVATE, masukkan Token di atas terlebih dahulu lalu refresh halaman.");
+                const res = await fetch(url, { headers });
+                
+                if (res.status === 404 && !token) {
+                    throw new Error("File tidak ditemukan. Jika repositori Anda PRIVATE, masukkan Token di atas terlebih dahulu lalu refresh halaman.");
+                }
+                
+                if (!res.ok) throw new Error(`Server merespon dengan status ${res.status}`);
+                
+                const json = await res.json();
+                currentSha = json.sha; // Simpan hash penanda versi file dari GitHub
+                
+                // Decode teks base64 dari GitHub ke JSON
+                const contentText = decodeURIComponent(escape(atob(json.content)));
+                currentData = JSON.parse(contentText);
+                
+                populateForm(currentData);
+                hideAlerts();
+            } catch (err) {
+                showError("Gagal memuat konfigurasi: " + err.message);
+            }
         }
-        
-        if (!res.ok) throw new Error(`Server merespon dengan status ${res.status}`);
-        
-        const json = await res.json();
-        currentSha = json.sha; 
-        
-        const contentText = decodeURIComponent(escape(atob(json.content)));
-        currentData = JSON.parse(contentText);
-        
-        populateForm(currentData);
-        hideAlerts();
-    } catch (err) {
-        showError("Gagal memuat konfigurasi: " + err.message);
-    }
-}
 
         // Distribusikan data dari JSON ke kolom input form HTML
         function populateForm(data) {
@@ -239,21 +240,21 @@ async function loadConfigFromGitHub() {
             document.getElementById("panel_form").requestSubmit();
         }
 
-        // Proses Penyimpanan Data ke File GitHub Menggunakan API
+        // Proses Penyimpanan Data ke File GitHub Menggunakan API (Dengan Diagnostik Akurat)
         async function handleFormSubmit(e) {
             e.preventDefault();
             hideAlerts();
             
             const token = document.getElementById("gh_token").value.trim();
             if(!token) {
-                showError("Masukkan GitHub Personal Access Token Anda terlebih dahulu!");
+                showError("⚠️ Token masih kosong! Masukkan GitHub Token Anda di kolom paling atas.");
                 return;
             }
-            localStorage.setItem("gh_pat", token); // Simpan token di local storage agar tidak hilang
+            localStorage.setItem("gh_pat", token); // Simpan token secara aman di memori lokal browser
 
             const selectedMode = document.getElementById("mode_select").value;
             
-            // Siapkan susunan data JSON baru (Safe-Merge dengan data internal EA)
+            // Siapkan susunan data JSON baru (Safe-Merge agar tidak menimpa data internal dari EA)
             let updatedData = { ...currentData };
             
             updatedData.ModeControl = selectedMode;
@@ -282,16 +283,22 @@ async function loadConfigFromGitHub() {
                 delete updatedData.WebModeStartTime;
             }
 
-            try {
-                // Ambil kembali SHA terbaru agar tidak bentrok (Conflict 409)
-                const checkUrl = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}`;
-                const checkRes = await fetch(checkUrl, { headers: { 'Authorization': `token ${token}` } });
-                if(checkRes.ok) {
-                    const checkJson = await checkRes.json();
-                    currentSha = checkJson.sha;
-                }
+            const targetUrl = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}`;
 
-                // Encode content data ke format Base64 untuk dikirim ke API GitHub
+            try {
+                // 1. Cek versi SHA terbaru sebelum menimpa file untuk menghindari konflik data (Status 409)
+                const checkRes = await fetch(targetUrl, { 
+                    headers: { 'Authorization': `token ${token}` } 
+                });
+                
+                if (!checkRes.ok) {
+                    throw new Error(`[Tahap Cek SHA Gagal] Server merespon dengan kode ${checkRes.status}.\nAlamat API yang diakses: ${targetUrl}`);
+                }
+                
+                const checkJson = await checkRes.json();
+                currentSha = checkJson.sha;
+
+                // 2. Encode content data baru ke format Base64 untuk dikirim ke API GitHub
                 const utf8Bytes = new TextEncoder().encode(JSON.stringify(updatedData, null, 4));
                 const base64Content = btoa(String.fromCharCode(...utf8Bytes));
 
@@ -301,7 +308,8 @@ async function loadConfigFromGitHub() {
                     sha: currentSha
                 };
 
-                const saveRes = await fetch(checkUrl, {
+                // 3. Kirim data pembaruan menggunakan metode PUT
+                const saveRes = await fetch(targetUrl, {
                     method: "PUT",
                     headers: {
                         "Authorization": `token ${token}`,
@@ -312,14 +320,15 @@ async function loadConfigFromGitHub() {
 
                 if(!saveRes.ok) {
                     const errData = await saveRes.json();
-                    throw new Error(errData.message || "Gagal menyimpan file ke GitHub.");
+                    throw new Error(`[Tahap Simpan Gagal] ${errData.message || 'Error tidak diketahui'}`);
                 }
 
                 showSuccess("✅ Perubahan berhasil dikomit langsung ke GitHub Repository!");
                 currentData = updatedData;
                 initTimer(currentData);
             } catch (err) {
-                showError("Gagal mengirim data: " + err.message);
+                // Tampilkan diagnosis URL lengkap untuk mempermudah pengecekan jika ada salah ketik nama repo/user
+                showError(`🚨 DIAGNOSIS ERROR:\n${err.message}\n\n👉 TIPS: Pastikan variabel USERNAME "${GH_USER}" dan REPO "${GH_REPO}" di bagian bawah script HTML Anda sudah diubah dan ditulis sama persis (huruf besar/kecil) dengan akun GitHub Anda.`);
             }
         }
 
