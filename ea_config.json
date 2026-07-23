@@ -1,7 +1,7 @@
 {
-    "ModeControl": "LOCAL",
+    "ModeControl": "WEB",
     "ExtStatusTrading": "ON",
-    "WebTimeoutMinutes": 9,
+    "WebTimeoutMinutes": 10,
     "ADXMax": 50,
     "EMA": 50,
     "GridStep": 60,
@@ -15,5 +15,6 @@
     "AutoCloseFriday": true,
     "TP_G5": 150,
     "TP_G6": 450,
-    "TP_G7": 1000
+    "TP_G7": 1000,
+    "WebModeStartTime": 1784826275
 }
