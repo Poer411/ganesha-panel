@@ -123,25 +123,39 @@
             loadConfigFromGitHub();
         });
 
-        // Ambil data fresh langsung dari GitHub API
-        async function loadConfigFromGitHub() {
-            try {
-                const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}?t=${Date.now()}`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error("Gagal mengambil file JSON dari GitHub API.");
-                
-                const json = await res.ok ? await res.json() : null;
-                currentSha = json.sha; // Ambil hash penanda versi file dari GitHub
-                
-                // Decode teks base64 dari GitHub ke JSON
-                const contentText = decodeURIComponent(escape(atob(json.content)));
-                currentData = JSON.parse(contentText);
-                
-                populateForm(currentData);
-            } catch (err) {
-                showError("Gagal memuat konfigurasi: " + err.message);
-            }
+       // Ganti fungsi loadConfigFromGitHub lama dengan yang ini:
+async function loadConfigFromGitHub() {
+    try {
+        // Ambil token dari memori browser jika sudah pernah disimpan sebelumnya
+        const token = localStorage.getItem("gh_pat") || "";
+        const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}?t=${Date.now()}`;
+        
+        const headers = {};
+        if (token) {
+            headers["Authorization"] = `token ${token}`;
         }
+
+        const res = await fetch(url, { headers });
+        
+        // Jika gagal karena repo private dan token belum dimasukkan
+        if (res.status === 404 && !token) {
+            throw new Error("File tidak ditemukan. Jika repositori Anda PRIVATE, masukkan Token di atas terlebih dahulu lalu refresh halaman.");
+        }
+        
+        if (!res.ok) throw new Error(`Server merespon dengan status ${res.status}`);
+        
+        const json = await res.json();
+        currentSha = json.sha; 
+        
+        const contentText = decodeURIComponent(escape(atob(json.content)));
+        currentData = JSON.parse(contentText);
+        
+        populateForm(currentData);
+        hideAlerts();
+    } catch (err) {
+        showError("Gagal memuat konfigurasi: " + err.message);
+    }
+}
 
         // Distribusikan data dari JSON ke kolom input form HTML
         function populateForm(data) {
