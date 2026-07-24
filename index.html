@@ -62,8 +62,9 @@
             <label>Status Trading</label>
             <div class="btn-group">
                 <button type="button" onclick="setStatus('ON')" id="btn_on" class="btn-status" style="background:#16a34a;">✅<br>ON</button>
-                <button type="button" onclick="setStatus('OFF')" id="btn_off" class="btn-status" style="background:#ca8a04;">⏸️<br>OFF</button>
-                <button type="button" onclick="setStatus('EMERGENCY')" id="btn_emer" class="btn-status" style="background:#dc2626;">🚨<br>EMER</button>
+                <!-- UPDATE: Menambahkan parameter true untuk memicu auto-submit instan khusus tombol OFF dan EMER -->
+                <button type="button" onclick="setStatus('OFF', true)" id="btn_off" class="btn-status" style="background:#ca8a04;">⏸️<br>OFF</button>
+                <button type="button" onclick="setStatus('EMERGENCY', true)" id="btn_emer" class="btn-status" style="background:#dc2626;">🚨<br>EMER</button>
             </div>
 
             <div class="grid-2">
@@ -187,7 +188,8 @@
             initTimer(data);
         }
 
-        function setStatus(status) {
+        // UPDATE: Fungsi setStatus dimodifikasi agar dapat menerima trigger auto-submit instan
+        function setStatus(status, isInstantTrigger = false) {
             currentStatus = status;
             document.getElementById("btn_on").classList.remove("active-btn");
             document.getElementById("btn_off").classList.remove("active-btn");
@@ -196,6 +198,14 @@
             if(status === "ON") document.getElementById("btn_on").classList.add("active-btn");
             if(status === "OFF") document.getElementById("btn_off").classList.add("active-btn");
             if(status === "EMERGENCY") document.getElementById("btn_emer").classList.add("active-btn");
+
+            // Jika dipicu secara instan (klik tombol OFF atau EMER), langsung kirim data ke GitHub
+            if(isInstantTrigger && (status === "OFF" || status === "EMERGENCY")) {
+                const form = document.getElementById("panel_form");
+                if(form) {
+                    setTimeout(() => { form.requestSubmit(); }, 50);
+                }
+            }
         }
 
         function toggleInputLock(mode) {
