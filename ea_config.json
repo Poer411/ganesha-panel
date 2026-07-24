@@ -1,6 +1,6 @@
 {
     "ModeControl": "LOCAL",
-    "ExtStatusTrading": "ON",
+    "ExtStatusTrading": "EMERGENCY",
     "WebTimeoutMinutes": 5,
     "ADXMax": 50,
     "EMA": 50,
