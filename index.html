@@ -28,7 +28,7 @@
     <div class="card">
         <div class="header-container">
             <h2 class="header-title"><span>🧪</span> Ultra-Clean Tech.</h2>
-            <div class="header-subtitle">Panel Web V2.60 (npoint Cloud)</div>
+            <div class="header-subtitle">Panel Web V2.61 (npoint Cloud)</div>
         </div>
 
         <!-- Kredensial Akses Cloud Storage npoint.io -->
@@ -66,45 +66,36 @@
                 <button type="button" onclick="setStatus('EMERGENCY', true)" id="btn_emer" class="btn-status" style="background:#dc2626;">🚨<br>EMER</button>
             </div>
 
-            <div class="grid-2">
-                <div><label>ADX Max</label><input type="number" id="adx_max" class="param-input" value="50"></div>
-                <div><label>EMA</label><input type="number" id="ema" class="param-input" value="50"></div>
-            </div>
-            <div class="grid-2">
-                <div><label>Grid Step</label><input type="number" id="grid_step" class="param-input" value="50"></div>
-                <div><label>Max Layer</label><input type="number" id="max_layer" class="param-input" value="15"></div>
-            </div>
-
-            <!-- DOM Tersembunyi untuk TP G1 - G3 -->
-            <div style="display: none;">
-                <input type="number" step="0.01" id="tp_g1" class="param-input" value="2">
-                <input type="number" step="0.01" id="tp_g2" class="param-input" value="8">
-                <input type="number" step="0.01" id="tp_g3" class="param-input" value="20">
-            </div>
-
-            <div class="grid-2">
-                <div><label>TP G4</label><input type="number" step="0.01" id="tp_g4" class="param-input" value="55"></div>
-                <div><label>TP G5</label><input type="number" step="0.01" id="tp_g5" class="param-input" value="150"></div>
-            </div>
-            <div class="grid-2">
-                <div><label>TP G6</label><input type="number" step="0.01" id="tp_g6" class="param-input" value="450"></div>
-                <div><label>TP G7</label><input type="number" step="0.01" id="tp_g7" class="param-input" value="1400"></div>
-            </div>
-            <div class="grid-2">
-                <div><label>Daily Target</label><input type="number" step="0.01" id="daily_target" class="param-input" value="2000"></div>
-                <div><label>Max Loss</label><input type="number" step="0.01" id="max_loss" class="param-input" value="1000"></div>
-            </div>
-            
-            <!-- Fitur Auto Close Friday -->
-            <div class="grid-2">
-                <div>
-                    <label>Auto Close Friday</label>
-                    <select id="auto_close_friday" class="param-input">
-                        <option value="true" selected>TRUE (23:00)</option>
-                        <option value="false">FALSE</option>
-                    </select>
+            <!-- Kontainer Input Parameter yang akan disembunyikan saat OFF / EMR -->
+            <div id="parameter_fields">
+                <div class="grid-2">
+                    <div><label>ADX Max</label><input type="number" id="adx_max" class="param-input" value="50"></div>
+                    <div><label>EMA</label><input type="number" id="ema" class="param-input" value="50"></div>
                 </div>
-                <div></div>
+                <div class="grid-2">
+                    <div><label>Grid Step</label><input type="number" id="grid_step" class="param-input" value="50"></div>
+                    <div><label>Max Layer</label><input type="number" id="max_layer" class="param-input" value="15"></div>
+                </div>
+
+                <!-- DOM Tersembunyi untuk TP G1 - G3 -->
+                <div style="display: none;">
+                    <input type="number" step="0.01" id="tp_g1" class="param-input" value="2">
+                    <input type="number" step="0.01" id="tp_g2" class="param-input" value="8">
+                    <input type="number" step="0.01" id="tp_g3" class="param-input" value="20">
+                </div>
+
+                <div class="grid-2">
+                    <div><label>TP G4</label><input type="number" step="0.01" id="tp_g4" class="param-input" value="55"></div>
+                    <div><label>TP G5</label><input type="number" step="0.01" id="tp_g5" class="param-input" value="150"></div>
+                </div>
+                <div class="grid-2">
+                    <div><label>TP G6</label><input type="number" step="0.01" id="tp_g6" class="param-input" value="450"></div>
+                    <div><label>TP G7</label><input type="number" step="0.01" id="tp_g7" class="param-input" value="1400"></div>
+                </div>
+                <div class="grid-2">
+                    <div><label>Daily Target</label><input type="number" step="0.01" id="daily_target" class="param-input" value="2000"></div>
+                    <div><label>Max Loss</label><input type="number" step="0.01" id="max_loss" class="param-input" value="1000"></div>
+                </div>
             </div>
 
             <button type="submit" class="update-btn">SIMPAN PERUBAHAN PARAMETER</button>
@@ -116,7 +107,6 @@
         let currentStatus = "ON";
         let countdownInterval;
         
-        // Menggunakan Bin ID Anda secara default jika lokal kosong
         const DEFAULT_BIN_ID = "2659f8b1f2a706abf381";
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -179,8 +169,6 @@
             document.getElementById("daily_target").value = data.DailyTarget ?? 2000;
             document.getElementById("max_loss").value = data.MaxLoss ?? 1000;
             
-            document.getElementById("auto_close_friday").value = data.AutoCloseFriday !== undefined ? data.AutoCloseFriday.toString() : "true";
-            
             toggleInputLock(data.ModeControl || "LOCAL");
             initTimer(data);
         }
@@ -194,6 +182,15 @@
             if(status === "ON") document.getElementById("btn_on").classList.add("active-btn");
             if(status === "OFF") document.getElementById("btn_off").classList.add("active-btn");
             if(status === "EMERGENCY") document.getElementById("btn_emer").classList.add("active-btn");
+
+            const paramFields = document.getElementById("parameter_fields");
+            if(paramFields) {
+                if(status === "OFF" || status === "EMERGENCY") {
+                    paramFields.style.display = "none";
+                } else {
+                    paramFields.style.display = "block";
+                }
+            }
 
             if(isInstantTrigger && (status === "OFF" || status === "EMERGENCY")) {
                 const form = document.getElementById("panel_form");
@@ -275,7 +272,6 @@
             
             updatedData.DailyTarget = parseFloat(document.getElementById("daily_target").value) || 2000;
             updatedData.MaxLoss = parseFloat(document.getElementById("max_loss").value) || 1000;
-            updatedData.AutoCloseFriday = document.getElementById("auto_close_friday").value === "true";
 
             if (selectedMode === "WEB" && currentData.ModeControl !== "WEB") {
                 updatedData.WebModeStartTime = Math.floor(Date.now() / 1000);
