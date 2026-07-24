@@ -28,13 +28,13 @@
     <div class="card">
         <div class="header-container">
             <h2 class="header-title"><span>🧪</span> Ultra-Clean Tech.</h2>
-            <div class="header-subtitle">  Panel Web V2.51</div>
+            <div class="header-subtitle">Panel Web V2.60 (npoint Cloud)</div>
         </div>
 
-        <!-- Otorisasi Kredensial Akses GitHub -->
+        <!-- Kredensial Akses Cloud Storage npoint.io -->
         <div class="token-box">
-            <label style="margin-top:0; color:#38bdf8;">POWER: Token_EA</label>
-            <input type="password" id="gh_token" placeholder="Paste Personal Access Token Disini" style="font-size:0.9rem; padding:6px; background:#1f2937;">
+            <label style="margin-top:0; color:#38bdf8;">CLOUD STORAGE: npoint Bin ID</label>
+            <input type="text" id="npoint_bin_id" placeholder="Masukkan ID Bin npoint.io Anda" style="font-size:0.9rem; padding:6px; background:#1f2937;">
         </div>
 
         <div id="err_display" class="err-msg"></div>
@@ -62,7 +62,6 @@
             <label>Status Trading</label>
             <div class="btn-group">
                 <button type="button" onclick="setStatus('ON')" id="btn_on" class="btn-status" style="background:#16a34a;">✅<br>ON</button>
-                <!-- UPDATE: Menambahkan parameter true untuk memicu auto-submit instan khusus tombol OFF dan EMER -->
                 <button type="button" onclick="setStatus('OFF', true)" id="btn_off" class="btn-status" style="background:#ca8a04;">⏸️<br>OFF</button>
                 <button type="button" onclick="setStatus('EMERGENCY', true)" id="btn_emer" class="btn-status" style="background:#dc2626;">🚨<br>EMER</button>
             </div>
@@ -76,16 +75,13 @@
                 <div><label>Max Layer</label><input type="number" id="max_layer" class="param-input" value="15"></div>
             </div>
 
-            <!-- ========================================================================= -->
-            <!-- KRUSIAL: DATA TP_G1, TP_G2, & TP_G3 TETAP ADA DI DOM TETAPI TERSEMBUNYI  -->
-            <!-- ========================================================================= -->
+            <!-- DOM Tersembunyi untuk TP G1 - G3 -->
             <div style="display: none;">
                 <input type="number" step="0.01" id="tp_g1" class="param-input" value="2">
                 <input type="number" step="0.01" id="tp_g2" class="param-input" value="8">
                 <input type="number" step="0.01" id="tp_g3" class="param-input" value="20">
             </div>
 
-            <!-- SISA HAMPARAN PARAMETER DIATUR SEJAJAR DUA-DUA BIAR RAPI -->
             <div class="grid-2">
                 <div><label>TP G4</label><input type="number" step="0.01" id="tp_g4" class="param-input" value="55"></div>
                 <div><label>TP G5</label><input type="number" step="0.01" id="tp_g5" class="param-input" value="150"></div>
@@ -98,69 +94,69 @@
                 <div><label>Daily Target</label><input type="number" step="0.01" id="daily_target" class="param-input" value="2000"></div>
                 <div><label>Max Loss</label><input type="number" step="0.01" id="max_loss" class="param-input" value="1000"></div>
             </div>
+            
+            <!-- Fitur Auto Close Friday -->
+            <div class="grid-2">
+                <div>
+                    <label>Auto Close Friday</label>
+                    <select id="auto_close_friday" class="param-input">
+                        <option value="true" selected>TRUE (23:00)</option>
+                        <option value="false">FALSE</option>
+                    </select>
+                </div>
+                <div></div>
+            </div>
 
             <button type="submit" class="update-btn">SIMPAN PERUBAHAN PARAMETER</button>
         </form>
     </div>
 
     <script>
-        // =========================================================================
-        // PENTING: UBAH TIGA VARIABEL DI BAWAH INI SESUAI DENGAN AKUN GITHUB ANDA!
-        // =========================================================================
-        const GH_USER = "Poer411";        // Username GitHub Anda
-        const GH_REPO = "ganesha-panel";  // Nama Repositori Anda
-        const GH_FILE = "ea_config.json"; // Nama file JSON target konfigurasi
-
         let currentData = {};
-        let currentSha = "";
         let currentStatus = "ON";
         let countdownInterval;
+        
+        // Menggunakan Bin ID Anda secara default jika lokal kosong
+        const DEFAULT_BIN_ID = "2659f8b1f2a706abf381";
 
-        // Load Token dan Data JSON Saat Halaman Pertama Kali Dibuka
         document.addEventListener("DOMContentLoaded", () => {
-            const savedToken = localStorage.getItem("gh_pat");
-            if(savedToken) document.getElementById("gh_token").value = savedToken;
+            let savedBinId = localStorage.getItem("npoint_bin_id");
+            if(!savedBinId) {
+                savedBinId = DEFAULT_BIN_ID;
+                localStorage.setItem("npoint_bin_id", savedBinId);
+            }
+            
+            document.getElementById("npoint_bin_id").value = savedBinId;
+            loadConfigFromNpoint();
+            
+            document.getElementById("npoint_bin_id").addEventListener("change", (e) => {
+                const id = e.target.value.trim();
+                if(id) {
+                    localStorage.setItem("npoint_bin_id", id);
+                    loadConfigFromNpoint();
+                }
+            });
             
             document.getElementById("mode_select").addEventListener("change", (e) => toggleInputLock(e.target.value));
             document.getElementById("panel_form").addEventListener("submit", handleFormSubmit);
-            
-            loadConfigFromGitHub();
         });
 
-        // Ambil data fresh langsung dari GitHub API (Mendukung Repo Publik & Private)
-        async function loadConfigFromGitHub() {
+        async function loadConfigFromNpoint() {
             try {
-                const token = localStorage.getItem("gh_pat") || "";
-                const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}?t=${Date.now()}`;
-                
-                const headers = {};
-                if (token) {
-                    headers["Authorization"] = `token ${token}`;
-                }
-
-                const res = await fetch(url, { headers });
-                
-                if (res.status === 404 && !token) {
-                    throw new Error("File tidak ditemukan. Jika repositori Anda PRIVATE, masukkan Token di atas terlebih dahulu lalu refresh halaman.");
-                }
+                const binId = localStorage.getItem("npoint_bin_id") || DEFAULT_BIN_ID;
+                const url = `https://api.npoint.io/${binId}?t=${Date.now()}`;
+                const res = await fetch(url);
                 
                 if (!res.ok) throw new Error(`Server merespon dengan status ${res.status}`);
                 
-                const json = await res.json();
-                currentSha = json.sha; // Simpan hash penanda versi file dari GitHub
-                
-                // Decode teks base64 dari GitHub ke JSON
-                const contentText = decodeURIComponent(escape(atob(json.content)));
-                currentData = JSON.parse(contentText);
-                
+                currentData = await res.json();
                 populateForm(currentData);
                 hideAlerts();
             } catch (err) {
-                showError("Gagal memuat konfigurasi: " + err.message);
+                showError("Gagal memuat konfigurasi dari cloud: " + err.message);
             }
         }
 
-        // Distribusikan data dari JSON ke kolom input form HTML
         function populateForm(data) {
             document.getElementById("web_timeout_input").value = data.WebTimeoutMinutes || 60;
             document.getElementById("mode_select").value = data.ModeControl || "LOCAL";
@@ -176,7 +172,6 @@
             document.getElementById("tp_g2").value = data.TP_G2 ?? 8;
             document.getElementById("tp_g3").value = data.TP_G3 ?? 20;
             document.getElementById("tp_g4").value = data.TP_G4 ?? 55;
-            // POPULATE DATA BARU GROUP 5 - 7
             document.getElementById("tp_g5").value = data.TP_G5 ?? 150;
             document.getElementById("tp_g6").value = data.TP_G6 ?? 450;
             document.getElementById("tp_g7").value = data.TP_G7 ?? 1400;
@@ -184,11 +179,12 @@
             document.getElementById("daily_target").value = data.DailyTarget ?? 2000;
             document.getElementById("max_loss").value = data.MaxLoss ?? 1000;
             
+            document.getElementById("auto_close_friday").value = data.AutoCloseFriday !== undefined ? data.AutoCloseFriday.toString() : "true";
+            
             toggleInputLock(data.ModeControl || "LOCAL");
             initTimer(data);
         }
 
-        // UPDATE: Fungsi setStatus dimodifikasi agar dapat menerima trigger auto-submit instan
         function setStatus(status, isInstantTrigger = false) {
             currentStatus = status;
             document.getElementById("btn_on").classList.remove("active-btn");
@@ -199,7 +195,6 @@
             if(status === "OFF") document.getElementById("btn_off").classList.add("active-btn");
             if(status === "EMERGENCY") document.getElementById("btn_emer").classList.add("active-btn");
 
-            // Jika dipicu secara instan (klik tombol OFF atau EMER), langsung kirim data ke GitHub
             if(isInstantTrigger && (status === "OFF" || status === "EMERGENCY")) {
                 const form = document.getElementById("panel_form");
                 if(form) {
@@ -218,7 +213,6 @@
             }
         }
 
-        // Jalankan Fitur Timer Hitung Mundur Berbasis Sisi Klien
         function initTimer(data) {
             clearInterval(countdownInterval);
             document.getElementById("timer_wrapper").style.display = "none";
@@ -246,103 +240,65 @@
             }
         }
 
-        // Eksekusi otomatis jika batas waktu Web Control habis
         function autoFallbackToLocal() {
             document.getElementById("mode_select").value = "LOCAL";
             showError("Waktu batas Web Control habis! Mengembalikan kontrol ke LOCAL...");
             document.getElementById("panel_form").requestSubmit();
         }
 
-        // Proses Penyimpanan Data ke File GitHub Menggunakan API
         async function handleFormSubmit(e) {
-            e.preventDefault();
+            if(e) e.preventDefault();
             hideAlerts();
             
-            const token = document.getElementById("gh_token").value.trim();
-            if(!token) {
-                showError("⚠️ Token masih kosong! Masukkan GitHub Token Anda di kolom paling atas.");
-                return;
-            }
-            localStorage.setItem("gh_pat", token); // Simpan token secara aman di memori lokal browser
+            const binId = document.getElementById("npoint_bin_id").value.trim() || DEFAULT_BIN_ID;
+            localStorage.setItem("npoint_bin_id", binId);
 
             const selectedMode = document.getElementById("mode_select").value;
-            
-            // Siapkan susunan data JSON baru (Safe-Merge)
             let updatedData = { ...currentData };
             
             updatedData.ModeControl = selectedMode;
             updatedData.ExtStatusTrading = currentStatus;
-            updatedData.WebTimeoutMinutes = parseInt(document.getElementById("web_timeout_input").value);
+            updatedData.WebTimeoutMinutes = parseInt(document.getElementById("web_timeout_input").value) || 60;
             
-            updatedData.ADXMax = parseInt(document.getElementById("adx_max").value);
-            updatedData.EMA = parseInt(document.getElementById("ema").value);
-            updatedData.GridStep = parseInt(document.getElementById("grid_step").value);
-            updatedData.MaxLayer = parseInt(document.getElementById("max_layer").value);
+            updatedData.ADXMax = parseInt(document.getElementById("adx_max").value) || 50;
+            updatedData.EMA = parseInt(document.getElementById("ema").value) || 50;
+            updatedData.GridStep = parseInt(document.getElementById("grid_step").value) || 50;
+            updatedData.MaxLayer = parseInt(document.getElementById("max_layer").value) || 15;
             
-            updatedData.TP_G1 = parseFloat(document.getElementById("tp_g1").value);
-            updatedData.TP_G2 = parseFloat(document.getElementById("tp_g2").value);
-            updatedData.TP_G3 = parseFloat(document.getElementById("tp_g3").value);
-            updatedData.TP_G4 = parseFloat(document.getElementById("tp_g4").value);
-            // PARSING DATA BARU GROUP 5 - 7 KE OBJEK JSON
-            updatedData.TP_G5 = parseFloat(document.getElementById("tp_g5").value);
-            updatedData.TP_G6 = parseFloat(document.getElementById("tp_g6").value);
-            updatedData.TP_G7 = parseFloat(document.getElementById("tp_g7").value);
+            updatedData.TP_G1 = parseFloat(document.getElementById("tp_g1").value) || 2;
+            updatedData.TP_G2 = parseFloat(document.getElementById("tp_g2").value) || 8;
+            updatedData.TP_G3 = parseFloat(document.getElementById("tp_g3").value) || 20;
+            updatedData.TP_G4 = parseFloat(document.getElementById("tp_g4").value) || 55;
+            updatedData.TP_G5 = parseFloat(document.getElementById("tp_g5").value) || 150;
+            updatedData.TP_G6 = parseFloat(document.getElementById("tp_g6").value) || 450;
+            updatedData.TP_G7 = parseFloat(document.getElementById("tp_g7").value) || 1400;
             
-            updatedData.DailyTarget = parseFloat(document.getElementById("daily_target").value);
-            updatedData.MaxLoss = parseFloat(document.getElementById("max_loss").value);
+            updatedData.DailyTarget = parseFloat(document.getElementById("daily_target").value) || 2000;
+            updatedData.MaxLoss = parseFloat(document.getElementById("max_loss").value) || 1000;
+            updatedData.AutoCloseFriday = document.getElementById("auto_close_friday").value === "true";
 
-            // Kelola penanda waktu mulai web
             if (selectedMode === "WEB" && currentData.ModeControl !== "WEB") {
                 updatedData.WebModeStartTime = Math.floor(Date.now() / 1000);
             } else if (selectedMode === "LOCAL") {
                 delete updatedData.WebModeStartTime;
             }
 
-            const targetUrl = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}`;
+            const targetUrl = `https://api.npoint.io/${binId}`;
 
             try {
-                // 1. Cek versi SHA terbaru sebelum menimpa file untuk menghindari konflik data (Status 409)
-                const checkRes = await fetch(targetUrl, { 
-                    headers: { 'Authorization': `token ${token}` } 
-                });
-                
-                if (!checkRes.ok) {
-                    throw new Error(`[Tahap Cek SHA Gagal] Server merespon dengan kode ${checkRes.status}.\nAlamat API yang diakses: ${targetUrl}`);
-                }
-                
-                const checkJson = await checkRes.json();
-                currentSha = checkJson.sha;
-
-                // 2. Encode content data baru ke format Base64 untuk dikirim ke API GitHub
-                const utf8Bytes = new TextEncoder().encode(JSON.stringify(updatedData, null, 4));
-                const base64Content = btoa(String.fromCharCode(...utf8Bytes));
-
-                const bodyPayload = {
-                    message: "Pembaruan parameter via Ganesha Panel Web",
-                    content: base64Content,
-                    sha: currentSha
-                };
-
-                // 3. Kirim data pembaruan menggunakan metode PUT
                 const saveRes = await fetch(targetUrl, {
-                    method: "PUT",
-                    headers: {
-                        "Authorization": `token ${token}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(bodyPayload)
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updatedData)
                 });
 
-                if(!saveRes.ok) {
-                    const errData = await saveRes.json();
-                    throw new Error(`[Tahap Simpan Gagal] ${errData.message || 'Error tidak diketahui'}`);
-                }
+                if(!saveRes.ok) throw new Error(`Server merespon dengan kode ${saveRes.status}`);
 
-                showSuccess("✅ Perubahan berhasil dikomit langsung ke GitHub Repository!");
+                showSuccess("✅ Perubahan sukses dikirim ke npoint cloud secara instan!");
                 currentData = updatedData;
                 initTimer(currentData);
             } catch (err) {
-                showError(`🚨 DIAGNOSIS ERROR:\n${err.message}\n\n👉 TIPS: Pastikan variabel USERNAME "${GH_USER}" dan REPO "${GH_REPO}" di bagian bawah script HTML Anda sudah diubah dan ditulis sama persis (huruf besar/kecil) dengan akun GitHub Anda.`);
+                showError(`🚨 GAGAL MEMPERBARUI VIA CLOUD:\n${err.message}\n\n👉 TIPS: Pastikan internet aktif dan Bin ID valid.`);
             }
         }
 
